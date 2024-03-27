@@ -1,0 +1,3 @@
+[submodule "ThirdParty/unityflexml"]
+	path = ThirdParty/unityflexml
+	url = https://gitlab.com/altairLab/unityflexml.git
