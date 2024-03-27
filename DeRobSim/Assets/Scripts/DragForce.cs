@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using NVIDIA;
 
-public class Force : MonoBehaviour
+public class DragForce : MonoBehaviour
 {
     public float mul = 100f;
     public NVIDIA.Flex.FlexActor FlexComponet;
@@ -33,7 +33,5 @@ public class Force : MonoBehaviour
 
     void ResetTransform(){
         FlexComponet.Teleport(initial_pose.position, initial_pose.rotation);
-        transform.position = initial_pose.position;
-        transform.rotation = initial_pose.rotation;
     }
 }

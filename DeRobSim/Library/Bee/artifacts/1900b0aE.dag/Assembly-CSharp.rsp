@@ -352,7 +352,6 @@
 -r:"Library/Bee/artifacts/1900b0aE.dag/UnityEngine.UI.ref.dll"
 -analyzer:"D:/Program Files/Unity/2022.3.20f1-x86_64/Editor/Data/Tools/Unity.SourceGenerators/Unity.Properties.SourceGenerator.dll"
 -analyzer:"D:/Program Files/Unity/2022.3.20f1-x86_64/Editor/Data/Tools/Unity.SourceGenerators/Unity.SourceGenerators.dll"
-"Assets/Deformable_Objects/Deformable_Cube/Force.cs"
 "Assets/NVIDIA/Flex/Actors/FlexActor.cs"
 "Assets/NVIDIA/Flex/Actors/FlexArrayActor.cs"
 "Assets/NVIDIA/Flex/Actors/FlexClothActor.cs"
@@ -378,6 +377,8 @@
 "Assets/NVIDIA/Flex/Native/Flex.cs"
 "Assets/NVIDIA/Flex/Native/FlexExt.cs"
 "Assets/NVIDIA/Flex/Native/FlexUtils.cs"
+"Assets/Scripts/DragForce.cs"
+"Assets/Scripts/ForceMeasurement.cs"
 -langversion:9.0
 
 /deterministic
