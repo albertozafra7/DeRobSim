@@ -149,6 +149,26 @@ namespace NVIDIA.Flex
             m_impulses.Add(info);
         }
 
+        public void setActiveGrab(bool active){
+            activeGrab = active;
+            relGrasp = !activeGrab && !relGrasp;
+        }
+
+        public bool getActiveGrab(){
+            return activeGrab;
+        }
+
+        public void setGrabber(GameObject grabber){
+            if (grabber == null) 
+                return;
+            else
+                grabber_ = grabber;
+        }
+
+        public GameObject getGrabber(){
+            return grabber_;
+        }
+
         #endregion
 
         #region Messages
@@ -338,15 +358,15 @@ namespace NVIDIA.Flex
 
         }
 
-        public GameObject EE;
+        GameObject grabber_;
         // 10000
         Vector4[] allParticles = new Vector4[10000];
 
 
         int idNextPart;
-        public static bool activeGrab = false;
-        public static bool relGrasp = false;
-        bool oneTimePick = true;
+        bool activeGrab = false;
+        bool relGrasp = false;
+        bool oneTimePick = false;
         bool oneTimeRel = true;
 
         int idNextPart2;
@@ -389,16 +409,16 @@ namespace NVIDIA.Flex
                 {
                     foreach (int idPart in particlesUnderRadius)
                     {
-                        _particleData.SetParticle(0 + idPart, new Vector4(EE.transform.position.x, EE.transform.position.y, EE.transform.position.z, 0));
+                        _particleData.SetParticle(0 + idPart, new Vector4(grabber_.transform.position.x, grabber_.transform.position.y, grabber_.transform.position.z, 0));
                     }
                 }
 
                 //check if trigger is active and there is a particle next
                 if ((oneTimePick) && !activeGrab )
                 {
-                    if (FindNextTo(allParticles, EE.transform.position)[1] < 0.02f) {
+                    if (FindNextTo(allParticles, grabber_.transform.position)[1] < 0.02f) {
 
-                        particlesUnderRadius = FindParticleInRadius(allParticles, EE.transform.position, 0.06f);
+                        particlesUnderRadius = FindParticleInRadius(allParticles, grabber_.transform.position, 0.06f);
                         if (!(particlesUnderRadius.Count.Equals(0)))
                         {
 
@@ -419,7 +439,7 @@ namespace NVIDIA.Flex
 
                     foreach (int idPart in particlesUnderRadius)
                     {
-                        _particleData.SetParticle(0 + idPart, new Vector4(EE.transform.position.x, EE.transform.position.y, EE.transform.position.z, 1));
+                        _particleData.SetParticle(0 + idPart, new Vector4(grabber_.transform.position.x, grabber_.transform.position.y, grabber_.transform.position.z, 1));
                     }
 
                 }               

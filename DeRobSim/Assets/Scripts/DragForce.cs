@@ -1,12 +1,12 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using NVIDIA;
+using NVIDIA.Flex;
 
 public class DragForce : MonoBehaviour
 {
     public float mul = 100f;
-    public NVIDIA.Flex.FlexActor FlexComponet;
+    public FlexActor FlexComponet;
     public Vector3 dir = Vector3.up;
     public bool reset_pose = false;
 
