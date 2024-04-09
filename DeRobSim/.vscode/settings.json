@@ -51,5 +51,6 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "DeRobSim.sln" 
+    "dotnet.defaultSolution": "DeRobSim.sln",
+    "cmake.sourceDirectory": "D:/alber/Documents/Cosas de la Universidad/Apuntes/Master/Internships/DeRobSim/DeRobSim/Library/PackageCache/com.unity.ide.visualstudio@2.0.22/Editor/COMIntegration/COMIntegration~"
 }
