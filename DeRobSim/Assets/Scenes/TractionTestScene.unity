@@ -242,7 +242,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f00046cb60512c44ca5b2184d5947ce5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dista: 0.02
   m_container: {fileID: 11400000, guid: 8a0b171cdcca3364c906af12214cf5fe, type: 2}
   m_particleGroup: -1
   m_selfCollide: 0
@@ -19213,7 +19212,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 793e0ae62b98fe542a8bc346e24e3dab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dista: 0.02
   m_container: {fileID: 11400000, guid: 246732606f396e84ab601d3f23b750b2, type: 2}
   m_particleGroup: -1
   m_selfCollide: 1
@@ -19342,7 +19340,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f00046cb60512c44ca5b2184d5947ce5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dista: 0.02
   m_container: {fileID: 11400000, guid: 8a0b171cdcca3364c906af12214cf5fe, type: 2}
   m_particleGroup: -1
   m_selfCollide: 0
@@ -25281,7 +25278,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 793e0ae62b98fe542a8bc346e24e3dab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dista: 0.02
   m_container: {fileID: 11400000, guid: 8a0b171cdcca3364c906af12214cf5fe, type: 2}
   m_particleGroup: -1
   m_selfCollide: 1
@@ -25319,6 +25315,7 @@ GameObject:
   - component: {fileID: 1880896216}
   - component: {fileID: 1880896215}
   - component: {fileID: 1880896214}
+  - component: {fileID: 1880896219}
   m_Layer: 0
   m_Name: Picker
   m_TagString: Untagged
@@ -25338,7 +25335,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 822893d76b7e6ae40bba76fb330b610f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  grabber: {fileID: 1880896213}
+  grabber: {fileID: 1880896219}
   actor: {fileID: 2072025648}
   grabbed: 0
 --- !u!65 &1880896215
@@ -25427,6 +25424,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1880896219
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1880896213}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22f1ebafabbb89c49a24d6367ced7c98, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  detectionRadius: 0.02
 --- !u!1 &1894572431
 GameObject:
   m_ObjectHideFlags: 0
@@ -25546,7 +25556,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f00046cb60512c44ca5b2184d5947ce5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dista: 0.02
   m_container: {fileID: 11400000, guid: 8a0b171cdcca3364c906af12214cf5fe, type: 2}
   m_particleGroup: -1
   m_selfCollide: 0
@@ -25601,7 +25610,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 669b96cc137041246b46e8203ba6a039, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dista: 0.02
   m_container: {fileID: 11400000, guid: 246732606f396e84ab601d3f23b750b2, type: 2}
   m_particleGroup: -1
   m_selfCollide: 0
@@ -25770,7 +25778,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f00046cb60512c44ca5b2184d5947ce5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dista: 0.02
   m_container: {fileID: 11400000, guid: 8a0b171cdcca3364c906af12214cf5fe, type: 2}
   m_particleGroup: -1
   m_selfCollide: 0

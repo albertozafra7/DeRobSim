@@ -380,7 +380,8 @@
 "Assets/NVIDIA/Flex/Native/FlexUtils.cs"
 "Assets/Scripts/DragForce.cs"
 "Assets/Scripts/ForceMeasurement.cs"
-"Assets/Scripts/setActiveGrab.cs"
+"Assets/Scripts/Grabbing/Grabber.cs"
+"Assets/Scripts/Grabbing/setActiveGrab.cs"
 -langversion:9.0
 
 /deterministic
