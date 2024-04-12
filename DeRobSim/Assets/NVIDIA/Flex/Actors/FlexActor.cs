@@ -150,7 +150,11 @@ namespace NVIDIA.Flex
         }
 
         public void setActiveGrab(bool active){
-            activeGrab = active;
+            if(!activeGrab)
+                oneTimePick = active;
+            else
+                activeGrab = active;
+                
             relGrasp = !activeGrab && !relGrasp;
         }
 
@@ -391,8 +395,8 @@ namespace NVIDIA.Flex
                 setRestPos = false;
             }
             
-            if (m_currentAsset.name == "Fat_FlexSoftAsset")
-            {
+            // if (m_currentAsset.name == "Fat_FlexSoftAsset")
+            // {
                 if (resFatPos)
                 {
                     _particleData.SetParticles(0,10000,particlesInitPos);
@@ -407,6 +411,7 @@ namespace NVIDIA.Flex
                 //if grab move particle in cube position
                 if (activeGrab)
                 {
+                    Debug.Log("ActiveGrab");
                     foreach (int idPart in particlesUnderRadius)
                     {
                         _particleData.SetParticle(0 + idPart, new Vector4(grabber_.transform.position.x, grabber_.transform.position.y, grabber_.transform.position.z, 0));
@@ -416,6 +421,7 @@ namespace NVIDIA.Flex
                 //check if trigger is active and there is a particle next
                 if ((oneTimePick) && !activeGrab )
                 {
+                    Debug.Log("OneTimePick");
                     if (FindNextTo(allParticles, grabber_.transform.position)[1] < 0.02f) {
 
                         particlesUnderRadius = FindParticleInRadius(allParticles, grabber_.transform.position, 0.06f);
@@ -432,6 +438,7 @@ namespace NVIDIA.Flex
                 //relase particle ( W component = 1 reactivate gravity)
                 if ((oneTimeRel) && relGrasp)
                 {
+                    Debug.Log("Release");
                     oneTimeRel = false;
                     oneTimePick = true;
                     activeGrab = false;
@@ -451,7 +458,7 @@ namespace NVIDIA.Flex
                     //else { m_recreateActor = 1; Recreate(); }
                     transform.hasChanged = false;
                 }
-            }
+            //}
             /*
             if (transform.hasChanged && Application.isPlaying)
             {

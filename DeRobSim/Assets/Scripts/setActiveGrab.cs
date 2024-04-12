@@ -24,6 +24,8 @@ public class setActiveGrab : MonoBehaviour
             actor.setGrabber(grabber);
 
         actor.setActiveGrab(grabbed); 
+
+        //print(actor.getActiveGrab());
         // if(grabbed)
         //     FlexActor.activeGrab = grabbed;
         // else
