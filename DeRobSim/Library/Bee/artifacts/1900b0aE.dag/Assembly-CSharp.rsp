@@ -397,6 +397,7 @@
 "Assets/Deform/Plugins/AsyncAwaitUtil/Source/TaskExtensions.cs"
 "Assets/Deform/Plugins/AsyncAwaitUtil/Source/WaitForBackgroundThread.cs"
 "Assets/Deform/Plugins/AsyncAwaitUtil/Source/WaitForUpdate.cs"
+"Assets/Tests/Code/GrabbedObject.cs"
 -langversion:9.0
 
 /deterministic
