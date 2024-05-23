@@ -23,8 +23,11 @@ public class setActiveGrab : MonoBehaviour
         // if(grabber != null)
         //     actor.addGrabber(grabber);
 
-        if(grabbed)
+        if(grabbed){
             grabber.grab();
+            if (grabber != null)
+                actor.addGrabber(grabber);
+        }
         else
             grabber.release(); 
 
