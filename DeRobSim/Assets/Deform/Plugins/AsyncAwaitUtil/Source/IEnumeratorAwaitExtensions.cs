@@ -8,7 +8,6 @@ using System.Text;
 using System.Threading;
 using UnityEngine;
 using UnityAsyncAwaitUtil;
-using UnityEngine.Networking;
 
 // We could just add a generic GetAwaiter to YieldInstruction and CustomYieldInstruction
 // but instead we add specific methods to each derived class to allow for return values
@@ -64,7 +63,7 @@ public static class IEnumeratorAwaitExtensions
     }
 
     // Return itself so you can do things like (await new WWW(url)).bytes
-    public static SimpleCoroutineAwaiter<UnityWebRequest> GetAwaiter(this UnityWebRequest instruction)
+    public static SimpleCoroutineAwaiter<WWW> GetAwaiter(this WWW instruction)
     {
         return GetAwaiterReturnSelf(instruction);
     }

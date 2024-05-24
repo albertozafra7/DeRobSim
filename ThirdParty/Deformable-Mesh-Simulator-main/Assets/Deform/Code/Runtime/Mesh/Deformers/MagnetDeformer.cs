@@ -69,6 +69,7 @@ namespace Deform
 				var point = mul (meshToAxis, float4 (vertices[index], 1f)).xyz;
 
 				var dist = pow (length (point), 2f) / factor;
+
 				if (dist == 0f)
 					return;
 				var t = factor * (1f / (pow (abs (dist), falloff)));

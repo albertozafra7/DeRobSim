@@ -216,7 +216,7 @@ namespace Deform
 			VertexDataUtil.ApplyVertexData (vertexData, deformMesh);
 			if (meshCollider != null)
 			{
-				//meshCollider.inflateMesh = true;
+				meshCollider.inflateMesh = true;
 				meshCollider.sharedMesh = deformMesh;
 			}
 
