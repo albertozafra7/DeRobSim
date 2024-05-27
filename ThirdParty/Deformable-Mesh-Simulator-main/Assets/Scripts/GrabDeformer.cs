@@ -7,7 +7,7 @@ using static Unity.Mathematics.math;
 
 namespace Deform
 {
-    [Deformer (Name = "Grab", Description = "Deforms an object depending on the grab", Type = typeof (MagnetDeformer))]
+    [Deformer (Name = "Grab", Description = "Deforms an object depending on the grab", Type = typeof (GrabDeformer))]
     public class GrabDeformer : Deformer
     {
         
@@ -40,10 +40,10 @@ namespace Deform
             set => center = value;
         }
 
-        [SerializeField, HideInInspector] private float detectRadius = 0.2f;
-        [SerializeField, HideInInspector] private float strength = 1;
-        [SerializeField, HideInInspector] private bool activeGrab = false;
-        [SerializeField, HideInInspector] private Transform center;
+        [SerializeField] private float detectRadius = 0.2f;
+        [SerializeField] private float strength = 1;
+        [SerializeField] private bool activeGrab = false;
+        [SerializeField] private Transform center;
 
         #endregion Custom Properties
 
@@ -54,10 +54,16 @@ namespace Deform
 
         public override JobHandle Process (MeshData data, JobHandle dependency = default (JobHandle))
 		{
-			var meshToAxis = DeformerUtils.GetMeshToAxisSpace (Center, data.Target.GetTransform ());
+			var meshToAxis =  Matrix4x4.TRS(data.Target.GetTransform().position, data.Target.GetTransform().rotation, data.Target.GetTransform().lossyScale).inverse* Matrix4x4.TRS(center.position, center.rotation, center.lossyScale);//DeformerUtils.GetMeshToAxisSpace (center, data.Target.GetTransform ());
 
 			return new GrabJob
 			{
+                detectRadius = detectRadius,
+                strength = strength,
+                activeGrab = activeGrab,
+                meshToAxis = meshToAxis,
+                axisToMesh = meshToAxis.inverse,
+                vertices = data.DynamicNative.VertexBuffer
 			}.Schedule (data.Length, DEFAULT_BATCH_COUNT, dependency);
 		}
 
@@ -73,6 +79,7 @@ namespace Deform
             public float4x4 meshToAxis; // Homogeneous transformation matrix used to change from global to local space
             public float4x4 axisToMesh; // Inverse homogeneous transformation matrix used to change from local to global space
             public NativeArray<float3> vertices;    // Vertices of the mesh to be deformed
+            public bool grabbing;
 
 
             public void Execute(int index)
@@ -82,9 +89,16 @@ namespace Deform
 
                 float dist_to_grabber = pow(length(vertex_local_position),2f);
 
-                if(dist_to_grabber < detectRadius)
+                // Debug.Log("Scale = " + centerScale + " Detect Radius =" + detectRadius + " Dist to grabber =" + dist_to_grabber);
+
+                if(dist_to_grabber < detectRadius )
                 {
-                    Debug.Log("Vertex " + index + " is close enough to be grabbed (dist =" + dist_to_grabber + ")");
+                    // var t = detectRadius * (1f / (pow (abs (dist_to_grabber), strength)));
+				    // var ut = clamp (t, float.MinValue, 1f);
+				    // vertex_local_position = lerp (vertex_local_position, float3 (0), ut);
+
+				    // vertices[index] = mul (axisToMesh, float4 (vertex_local_position, 1f)).xyz;
+                    // Debug.Log("Vertex " + index + " is close enough to be grabbed (dist =" + dist_to_grabber + ")");
                 }
 		    }
 

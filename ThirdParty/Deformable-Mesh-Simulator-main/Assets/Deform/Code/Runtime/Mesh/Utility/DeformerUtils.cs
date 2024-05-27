@@ -12,7 +12,9 @@ namespace Deform
 		/// </summary>
 		public static Matrix4x4 GetMeshToAxisSpace (Transform axis, Transform mesh)
 		{
-			return axis.worldToLocalMatrix * mesh.transform.localToWorldMatrix;
+			// This is incorrect it should be mesh_T_axis = mesh_T_world * world_T_axis
+			// mesh.localToWorldMatrix * axis.worldToLocalMatrix;
+			return axis.worldToLocalMatrix * mesh.localToWorldMatrix;
 		}
 
 		/// <summary>
