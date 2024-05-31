@@ -43,10 +43,17 @@ namespace Deform
             set => center = value;
         }
 
+        public VertexSaver GrabbedVert{
+            get { return grabbedVert; }
+            set { grabbedVert = value;}
+        }
+
         [SerializeField] private float detectRadius = 0.2f;
         [SerializeField] private float strength = 1;
         [SerializeField] private bool activeGrab = false;
         [SerializeField] private Transform center;
+
+        [SerializeField] private VertexSaver grabbedVert;
 
         #endregion Custom Properties
 
@@ -63,12 +70,25 @@ namespace Deform
 
         public override DataFlags DataFlags => DataFlags.Vertices | DataFlags.Colors;
 
+        // private void OnDisable ()
+        // {
+        //     if (grabbedVert.IsCreated)
+        //         grabbedVert.Dispose();
+        // }
+
+
+
+
 
         public override JobHandle Process (MeshData data, JobHandle dependency = default (JobHandle))
 		{
-			var meshToAxis =  DeformerUtils.GetMeshToAxisSpace (center, data.Target.GetTransform());
+			Matrix4x4 meshToAxis =  DeformerUtils.GetMeshToAxisSpace (center, data.Target.GetTransform());
 
-			return new GrabJob
+            grabbedVert.CreateArray(data.DynamicNative.VertexBuffer.Length);
+            // grabbedVert = new NativeArray<bool> (data.DynamicNative.VertexBuffer.Length, Allocator.TempJob);
+
+			// JobHandle job = new GrabJob
+            return new GrabJob
 			{
                 detectRadius = detectRadius,
                 strength = strength,
@@ -78,8 +98,17 @@ namespace Deform
                 vertices = data.DynamicNative.VertexBuffer,
                 DebugColor = new float4(DebugColor.r, DebugColor.g, DebugColor.b, DebugColor.a),
                 StandardColor = new float4(StandardColor.r, StandardColor.g, StandardColor.b, StandardColor.a),
-                colors = data.DynamicNative.ColorBuffer
+                colors = data.DynamicNative.ColorBuffer,
+                grabbedVertices = grabbedVert.grabbedVert,
+                grabbing = false
 			}.Schedule (data.Length, DEFAULT_BATCH_COUNT, dependency);
+
+            // job.Complete();
+
+            // if (grabbedVert.IsCreated)
+            //     grabbedVert.Dispose();
+
+            // return job;
 		}
 
 
@@ -98,7 +127,7 @@ namespace Deform
             public float4 DebugColor;
             public float4 StandardColor;
             public NativeArray<float4> colors;
-            //public NativeList<int> grabbedVertices_id;
+            public NativeArray<bool> grabbedVertices;
 
    
 
@@ -116,29 +145,33 @@ namespace Deform
                     colors[index] = DebugColor;
                     if(activeGrab){
                         if(!grabbing){
-                            //grabbedVertices_id.Add(index);
+                            grabbedVertices[index] = true;
 
                             if(index == vertices.Length-1)
                                 grabbing = true;
                         }
                         
                     } else{
-                        grabbing = false;
-                        //grabbedVertices_id.Clear();
+                        if(grabbing){
+                            grabbing = false;
+                            for(int i = 0; i < vertices.Length; i++)
+                                grabbedVertices[i] = false;
+                        }
                     }
                         
 
                 } else
                     colors[index] = StandardColor;
 
-                //if(grabbedVertices_id.Contains(index)){
-                    var t = detectRadius * (1f / (pow (abs (dist_to_grabber), strength)));
-                    var ut = clamp (t, float.MinValue, 1f);
-                    vertex_local_position = lerp (vertex_local_position, float3 (0), ut);
+                if(grabbedVertices[index]){
+                    // Debug.Log("Vertex " + index + " is being deformed");
+                    float t = detectRadius * (1f / (pow (abs (dist_to_grabber), strength)));
+                    float ut = clamp (t, float.MinValue, 1f);
+                    vertex_local_position = lerp (vertex_local_position, float3 (0f), ut);
 
                     vertices[index] = mul (axisToMesh, float4 (vertex_local_position, 1f)).xyz;
                     // Debug.Log("Vertex " + index + " is close enough to be grabbed (dist =" + dist_to_grabber + ")");
-                //}
+                }
 		    }
 
         }
