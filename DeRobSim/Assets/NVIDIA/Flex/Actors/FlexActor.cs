@@ -35,6 +35,7 @@ namespace NVIDIA.Flex
     [ExecuteInEditMode]
     [DisallowMultipleComponent]
     [AddComponentMenu("")]
+
     public class FlexActor : MonoBehaviour
     {
         #region Properties
@@ -147,6 +148,22 @@ namespace NVIDIA.Flex
             info.impulse = _impulse;
             info.particle = _particle;
             m_impulses.Add(info);
+        }
+        
+        public void addGrabber(Grabber grabber){
+            // If the object is not null and is not already within our class
+            Debug.Log("The grabber " + grabber.getGrabber().name + " has been added");
+            if(grabber != null && grabberList.Find(a => a.getGrabber().name == grabber.getGrabber().name) == null)
+                grabberList.Add(grabber);
+        }
+
+        public void removeGrabber(Grabber grabber){
+            if(grabber != null)
+                grabberList.Remove(grabber);
+        }
+
+        public void resetGrabberList(){
+            grabberList.Clear();
         }
 
         #endregion
@@ -338,24 +355,13 @@ namespace NVIDIA.Flex
 
         }
 
-        public GameObject EE;
         // 10000
         Vector4[] allParticles = new Vector4[10000];
 
+        // Custom Grabber
+        List<Grabber> grabberList = new List<Grabber>();
 
         int idNextPart;
-        public static bool activeGrab = false;
-        public static bool relGrasp = false;
-        bool oneTimePick = true;
-        bool oneTimeRel = true;
-
-        int idNextPart2;
-        bool activePick2 = false;
-        bool oneTimePick2 = true;
-        bool oneTimeRel2 = true;
-        [SerializeField] float dista = 0.02f;
-
-        List<int> particlesUnderRadius = new List<int>();
 
         private bool setRestPos = true;
         Vector4[] particlesInitPos = new Vector4[10000];
@@ -371,8 +377,8 @@ namespace NVIDIA.Flex
                 setRestPos = false;
             }
             
-            if (m_currentAsset.name == "Fat_FlexSoftAsset")
-            {
+            // if (m_currentAsset.name == "Fat_FlexSoftAsset")
+            // {
                 if (resFatPos)
                 {
                     _particleData.SetParticles(0,10000,particlesInitPos);
@@ -385,44 +391,62 @@ namespace NVIDIA.Flex
                 _particleData.GetParticles(0, 10000, allParticles);
 
                 //if grab move particle in cube position
-                if (activeGrab)
-                {
-                    foreach (int idPart in particlesUnderRadius)
-                    {
-                        _particleData.SetParticle(0 + idPart, new Vector4(EE.transform.position.x, EE.transform.position.y, EE.transform.position.z, 0));
+                if(grabberList.Exists(a => a.isGrabbing() == true)){
+                    List<Grabber> auxList = grabberList.FindAll(a => a.getActiveGrab());
+                    Debug.Log("ActiveGrab");
+                    foreach(Grabber g in auxList){
+                        foreach (int idPart in g.getDetectedParticles())
+                            {
+                                _particleData.SetParticle(0 + idPart, new Vector4(g.getGrabberpos().x, g.getGrabberpos().y, g.getGrabberpos().z, 0));
+                            }
                     }
                 }
+                
 
                 //check if trigger is active and there is a particle next
-                if ((oneTimePick) && !activeGrab )
-                {
-                    if (FindNextTo(allParticles, EE.transform.position)[1] < 0.02f) {
+                if(grabberList.Exists(a => a.isOnDetecting() == true)){
+                    List<Grabber> auxList = grabberList.FindAll(a => a.isOnDetecting());
+                    Debug.Log("OneTimePick");
+                    foreach(Grabber g in auxList){
+                        Debug.Log("Closest particle at " + g.GetDistanceToClosestParticle(allParticles));
+                        if (g.GetDistanceToClosestParticle(allParticles) < 0.02f) { // Maybe change for a method within the class
+                            //particlesUnderRadius = FindParticleInRadius(allParticles, grabber_.transform.position, 0.06f);
+                            g.DetectParticles(allParticles);
+                            Debug.Log("Detected Particles Count " + g.getDetectedParticlesCount());
+                            if(g.getDetectedParticlesCount() > 0)
+                                g.setOnGrabbing();
+                            // if (g.getDetectedParticlesCount() != 0)
+                            // {
 
-                        particlesUnderRadius = FindParticleInRadius(allParticles, EE.transform.position, 0.06f);
-                        if (!(particlesUnderRadius.Count.Equals(0)))
-                        {
-
-                            oneTimePick = false;
-                            oneTimeRel = true;
-                            activeGrab = true;
+                            //     oneTimePick = false;
+                            //     oneTimeRel = true;
+                            //     activeGrab = true;
+                            // }
                         }
                     }
-
                 }
-                //relase particle ( W component = 1 reactivate gravity)
-                if ((oneTimeRel) && relGrasp)
-                {
-                    oneTimeRel = false;
-                    oneTimePick = true;
-                    activeGrab = false;
-                    relGrasp = false;
+                    
+                if(grabberList.Exists(a => a.isReleasing() == true)){
+                    //release particle ( W component = 1 reactivate gravity)
+                    //if ((oneTimeRel) && relGrasp)
+                    //{
+                    List<Grabber> auxList = grabberList.FindAll(a => a.isReleasing());
+                    Debug.Log("Release");
+                    foreach (Grabber g in auxList){
+                        foreach (int idPart in g.getDetectedParticles())
+                        {
+                            _particleData.SetParticle(0 + idPart, new Vector4(g.getGrabberpos().x, g.getGrabberpos().y, g.getGrabberpos().z, 1));
+                        }
+                        g.DetectParticles(allParticles);
 
-                    foreach (int idPart in particlesUnderRadius)
-                    {
-                        _particleData.SetParticle(0 + idPart, new Vector4(EE.transform.position.x, EE.transform.position.y, EE.transform.position.z, 1));
+                        if(g.getDetectedParticlesCount() == 0)
+                            g.setOnReleased();
                     }
 
-                }               
+                    //}  
+                }
+
+              
 
                 if (transform.hasChanged && Application.isPlaying)
                 {
@@ -431,7 +455,7 @@ namespace NVIDIA.Flex
                     //else { m_recreateActor = 1; Recreate(); }
                     transform.hasChanged = false;
                 }
-            }
+            //}
             /*
             if (transform.hasChanged && Application.isPlaying)
             {

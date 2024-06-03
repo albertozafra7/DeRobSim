@@ -1,5 +1,5 @@
 sceneSetups:
-- path: Assets/Scenes/DeformableCubeScene.unity
+- path: Assets/Scenes/TractionTestScene.unity
   isLoaded: 1
   isActive: 1
   isSubScene: 0
