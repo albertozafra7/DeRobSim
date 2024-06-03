@@ -1,5 +1,5 @@
 sceneSetups:
-- path: Assets/Scenes/TractionTestScene.unity
+- path: Assets/Scenes/DeformationControl.unity
   isLoaded: 1
   isActive: 1
   isSubScene: 0
