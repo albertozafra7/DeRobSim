@@ -12,7 +12,7 @@ public class setActiveGrab : MonoBehaviour
     void Start()
     {
         grabbed = false;
-        if (grabber != null)
+        if (grabber != null && actor != null)
             actor.addGrabber(grabber);
 
     }
@@ -25,7 +25,7 @@ public class setActiveGrab : MonoBehaviour
 
         if(grabbed){
             grabber.grab();
-            if (grabber != null)
+            if (grabber != null && actor != null)
                 actor.addGrabber(grabber);
         }
         else

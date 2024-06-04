@@ -48,6 +48,7 @@ namespace NVIDIA.Flex
 
             public void GetParticles(int _start, int _count, Vector4[] _particles)
             {
+                Debug.LogError("Start =" + _start + " Count =" + _count + " Length Particles =" + _particles.Length);
                 FlexUtils.FastCopy(particleData.particles, _start * 16, ref _particles[0], 0, _count * 16);
             }
             public void SetParticles(int _start, int _count, Vector4[] _particles)

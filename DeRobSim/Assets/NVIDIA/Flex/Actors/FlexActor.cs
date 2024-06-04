@@ -155,6 +155,9 @@ namespace NVIDIA.Flex
             Debug.Log("The grabber " + grabber.getGrabber().name + " has been added");
             if(grabber != null && grabberList.Find(a => a.getGrabber().name == grabber.getGrabber().name) == null)
                 grabberList.Add(grabber);
+            
+            particle_start_id = indices[0];
+            particle_num = indices.Length;
         }
 
         public void removeGrabber(Grabber grabber){
@@ -272,7 +275,13 @@ namespace NVIDIA.Flex
                     FlexExt.Instance instance = m_instanceHandle.instance;
                     m_indices = new int[m_currentAsset.maxParticles];
                     m_indexCount = instance.numParticles;
+                    particle_start_id = m_indices[0];
+                    particle_num = m_indices.Length;
                     if (m_indexCount > 0) FlexUtils.FastCopy(instance.particleIndices, 0, ref m_indices[0], 0, sizeof(int) * m_indexCount);
+
+                    Debug.LogError("Start index =" + m_indices[0]);
+                    Debug.LogError("Last index =" + m_indices[m_indices.Length-1]);
+                    Debug.LogError("size =" + m_indices.Length);
                 }
             }
         }
@@ -356,24 +365,29 @@ namespace NVIDIA.Flex
         }
 
         // 10000
-        Vector4[] allParticles = new Vector4[10000];
+        Vector4[] allParticles = new Vector4[30000];
 
         // Custom Grabber
         List<Grabber> grabberList = new List<Grabber>();
 
         int idNextPart;
 
+        int particle_start_id = 0;  // Starting particle id of the actor within the container
+        int particle_num = 0;    // Ending particle id of the actor within the container
+
         private bool setRestPos = true;
-        Vector4[] particlesInitPos = new Vector4[10000];
+        Vector4[] particlesInitPos = new Vector4[30000];
         public static bool resFatPos = false;
         protected virtual void OnFlexUpdate(FlexContainer.ParticleData _particleData)
         {
             
             UpdateDrawParticles();
+            //Debug.LogError("End " + particle_num);
 
             if (setRestPos)
             {
-                _particleData.GetParticles(0,10000,particlesInitPos);
+                //_particleData.GetParticles(particle_start_id,particle_start_id+particle_num,particlesInitPos);
+                _particleData.GetParticles(0,30000,particlesInitPos);
                 setRestPos = false;
             }
             
@@ -381,14 +395,16 @@ namespace NVIDIA.Flex
             // {
                 if (resFatPos)
                 {
-                    _particleData.SetParticles(0,10000,particlesInitPos);
+                    //_particleData.SetParticles(particle_start_id,particle_start_id+particle_num,particlesInitPos);
+                    _particleData.SetParticles(0,30000,particlesInitPos);
                     resFatPos = false;
                 }
                 
                 
 
                 //pick all particles
-                _particleData.GetParticles(0, 10000, allParticles);
+                //_particleData.GetParticles(particle_start_id,particle_start_id+ particle_num, allParticles);
+                _particleData.GetParticles(0,30000, allParticles);
 
                 //if grab move particle in cube position
                 if(grabberList.Exists(a => a.isGrabbing() == true)){
@@ -409,7 +425,7 @@ namespace NVIDIA.Flex
                     Debug.Log("OneTimePick");
                     foreach(Grabber g in auxList){
                         Debug.Log("Closest particle at " + g.GetDistanceToClosestParticle(allParticles));
-                        if (g.GetDistanceToClosestParticle(allParticles) < 0.02f) { // Maybe change for a method within the class
+                        if (g.GetDistanceToClosestParticle(allParticles) <= g.getDetectionRadius()) { // Maybe change for a method within the class
                             //particlesUnderRadius = FindParticleInRadius(allParticles, grabber_.transform.position, 0.06f);
                             g.DetectParticles(allParticles);
                             Debug.Log("Detected Particles Count " + g.getDetectedParticlesCount());

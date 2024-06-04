@@ -113,7 +113,7 @@ public class Grabber : MonoBehaviour {
         onDetecting = false;
         relGrasp = true;
         onReleasing = false;
-        detectionRadius = 0.02f;
+        //detectionRadius = 0.02f;
         particlesUnderRadius.Clear();
 
     }
