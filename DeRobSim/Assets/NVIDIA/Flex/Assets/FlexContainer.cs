@@ -48,7 +48,7 @@ namespace NVIDIA.Flex
 
             public void GetParticles(int _start, int _count, Vector4[] _particles)
             {
-                Debug.LogError("Start =" + _start + " Count =" + _count + " Length Particles =" + _particles.Length);
+                // Debug.LogError("Start =" + _start + " Count =" + _count + " End =" + (_start+_count) + " Length Particles =" + _particles.Length);
                 FlexUtils.FastCopy(particleData.particles, _start * 16, ref _particles[0], 0, _count * 16);
             }
             public void SetParticles(int _start, int _count, Vector4[] _particles)
@@ -220,7 +220,7 @@ namespace NVIDIA.Flex
         public int[] fluidIndices { get { return m_fluidIndices; } }
         public int fluidIndexCount { get { return m_fluidIndexCount; } }
 
-        public int maxParticles { get { return m_maxParticles; } }
+        public int maxParticles { get { return m_maxParticles; }}
 
         public Material fluidMaterial { get { return m_fluidMaterial; } }
 
@@ -243,6 +243,12 @@ namespace NVIDIA.Flex
         #endregion
 
         #region Methods
+
+        public void SetMaxParticles(int maxParticles)
+        {
+            m_simpleMaxParticles = maxParticles;
+            m_maxParticles = maxParticles;
+        }
 
         public void AddActor(FlexActor actor)
         {
