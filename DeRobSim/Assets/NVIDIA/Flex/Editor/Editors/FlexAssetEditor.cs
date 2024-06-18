@@ -65,6 +65,7 @@ namespace NVIDIA.Flex
                 GUI.changed = true;
             }
 
+            // Paints the particle
             if (Event.current.type == EventType.Repaint)
             {
                 if (Event.current.control && Event.current.alt) EditorGUIUtility.AddCursorRect(r, MouseCursor.ArrowMinus);
@@ -79,14 +80,17 @@ namespace NVIDIA.Flex
                 m_previewRender.camera.RemoveCommandBuffer(CameraEvent.AfterEverything, commandBuffer);
                 m_previewRender.EndAndDrawPreview(r);
             }
+            // Frees particles
             else if ((Event.current.type == EventType.MouseDown || Event.current.type == EventType.MouseDrag) && Event.current.control && Event.current.alt && r.Contains(Event.current.mousePosition))
             {
                 PaintFixedParticles(r, false);
             }
+            // Fixes particles
             else if ((Event.current.type == EventType.MouseDown || Event.current.type == EventType.MouseDrag) && Event.current.control && r.Contains(Event.current.mousePosition))
             {
                 PaintFixedParticles(r, true);
             }
+            // Controls the camera change
             else if (Event.current.type == EventType.MouseDrag && r.Contains(Event.current.mousePosition))
             {
                 Vector2 mouseDelta = Event.current.delta;

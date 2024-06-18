@@ -15,6 +15,10 @@ public class ForceMeasurement : MonoBehaviour
     private Dictionary<int, Vector3> regionForces = new Dictionary<int, Vector3>();
     private Dictionary<int, Vector3> regionCenters = new Dictionary<int, Vector3>();
     private Vector4 MeshCenter;
+    private Mesh mesh;
+    private SkinnedMeshRenderer meshRenderer;
+    private float maxForce = 0;
+    private int iter_count = 0;
 
     void Start()
     {
@@ -70,6 +74,9 @@ public class ForceMeasurement : MonoBehaviour
                 }
             }
         }).Wait(); // Wait for all tasks to complete before proceeding
+
+        mesh = FlexComponent.gameObject.GetComponent<MeshFilter>().mesh;
+        meshRenderer = FlexComponent.gameObject.GetComponent<SkinnedMeshRenderer>();
     }
 
     Dictionary<int, List<int>> ProcessParticles(int start, int end)
@@ -123,9 +130,19 @@ public class ForceMeasurement : MonoBehaviour
 
             // Print region information
             Debug.Log($"Region {region.Key} of size {numParticles} has a force of {totalForce} with center in {center}");
+
+            if(totalForce.magnitude > maxForce)
+                maxForce = totalForce.magnitude;
         }
 
-        // ColorizeMesh();
+        ColorizeMesh();
+
+        if(iter_count > 250)
+        {
+            maxForce = 0;
+            iter_count = 0;
+        }
+        iter_count++;
     }
 
     int GetRegion(Vector4 position)
@@ -164,28 +181,37 @@ public class ForceMeasurement : MonoBehaviour
 
     void ColorizeMesh()
     {
-        // Example: Colorize the mesh based on force magnitude (simplified)
-        Mesh mesh = FlexComponent.gameObject.GetComponent<MeshFilter>().mesh;
         Vector3[] vertices = mesh.vertices;
         Color[] colors = new Color[vertices.Length];
+        meshRenderer.sharedMesh = (Mesh) Instantiate(meshRenderer.sharedMesh);
+        mesh = meshRenderer.sharedMesh;
 
-        foreach (var region in regions)
+        if(maxForce > 0)
         {
-            Vector3 totalForce = regionForces[region.Key];
-            Color regionColor = GetColorBasedOnForce(totalForce.magnitude);
-
-            foreach (var index in region.Value)
+            foreach (var region in regions)
             {
-                colors[index - FlexComponent.GetParticleStartId()] = regionColor;
-            }
-        }
+                Vector3 totalForce = regionForces[region.Key];
+                Color regionColor = GetColorBasedOnForce(totalForce.magnitude);
 
-        mesh.colors = colors;
+                for (int i = 0; i < vertices.Length; ++i)
+                {
+                    if(GetRegion(new Vector4(vertices[i].x,vertices[i].y,vertices[i].z)) == region.Key)
+                    {
+                        if(totalForce.magnitude > 2)
+                            colors[i] = regionColor;
+                        else
+                            colors[i] = Color.green;
+                    }
+                }
+            }
+
+            mesh.SetColors(colors);
+            // meshRenderer.material.SetColorArray("_Color", colors);
+        }
     }
 
     Color GetColorBasedOnForce(float forceMagnitude)
     {
-        // Example: Map force magnitude to color (simplified)
-        return Color.Lerp(Color.green, Color.red, forceMagnitude / 10.0f); // Assuming max force magnitude is 10 for this example
+        return Color.Lerp(Color.green, Color.red, forceMagnitude / (maxForce/2)); // Assuming max force magnitude is big enough to get its half
     }
 }
