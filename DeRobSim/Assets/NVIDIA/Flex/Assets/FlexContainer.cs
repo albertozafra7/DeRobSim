@@ -689,6 +689,7 @@ namespace NVIDIA.Flex
         }
 
         ParticleData m_particleData = new ParticleData();
+
         void UpdateSolver()
         {
             m_particleData.container = this;

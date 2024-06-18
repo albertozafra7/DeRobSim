@@ -169,6 +169,18 @@ namespace NVIDIA.Flex
             grabberList.Clear();
         }
 
+        public FlexContainer GetContainer(){
+            return m_currentContainer;
+        }
+
+        public int GetParticleNum(){
+            return particle_num;
+        }
+
+        public int GetParticleStartId(){
+            return particle_start_id;
+        }
+
         #endregion
 
         #region Messages
@@ -640,27 +652,43 @@ namespace NVIDIA.Flex
             transform.hasChanged = false;
         }
 
-        void ApplyImpulses(FlexContainer.ParticleData _particleData)
-        {
+       void ApplyImpulses(FlexContainer.ParticleData _particleData)
+       {
+            // Check if there is a current asset and instance handle
             if (m_currentAsset && m_instanceHandle)
             {
+                // Get the instance and number of particles
                 FlexExt.Instance instance = m_instanceHandle.instance;
                 int[] indices = new int[instance.numParticles];
+                
+                // Copy the particle indices to a new array
                 FlexUtils.FastCopy(instance.particleIndices, indices);
+                
+                // Iterate over each impulse in the list
                 foreach (var info in m_impulses)
                 {
+                    // Skip impulses with negligible magnitude
                     if (info.impulse.sqrMagnitude < float.Epsilon) continue;
+
                     float mass = 0;
+                    
+                    // Calculate the total mass of the particles affected by this impulse
                     foreach (var index in indices)
                     {
                         if (info.particle == -1 || info.particle == index)
                         {
                             Vector4 particle = _particleData.GetParticle(index);
-                            mass += 1.0f / particle.w;
+                            mass += 1.0f / particle.w;  // Sum the inverse of the particle's mass
                         }
                     }
+                    
+                    // Skip if the calculated mass is negligible
                     if (mass < float.Epsilon) continue;
+
+                    // Calculate the change in velocity
                     Vector3 velocityChange = info.impulse / mass;
+                    
+                    // Apply the velocity change to each particle
                     foreach (var index in indices)
                     {
                         _particleData.SetVelocity(index, _particleData.GetVelocity(index) + velocityChange);
@@ -668,6 +696,7 @@ namespace NVIDIA.Flex
                 }
             }
         }
+
 
         static int sm_nextGroup = 0;
 
