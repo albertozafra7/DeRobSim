@@ -379,6 +379,7 @@
 "Assets/NVIDIA/Flex/Native/FlexExt.cs"
 "Assets/NVIDIA/Flex/Native/FlexUtils.cs"
 "Assets/Scripts/Container_Creation.cs"
+"Assets/Scripts/Control/Agent.cs"
 "Assets/Scripts/Control/DeformationControl.cs"
 "Assets/Scripts/DragForce.cs"
 "Assets/Scripts/ForceMeasurement.cs"

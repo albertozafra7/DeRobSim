@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using NVIDIA.Flex;
 
+
 public class Grabber : MonoBehaviour {
     
     #region Properties
@@ -17,6 +18,7 @@ public class Grabber : MonoBehaviour {
     private bool relGrasp = false;      // Determines if the object has been released
     private bool onReleasing = true;    // Determines if the object is on the releasing processs
     private List<int> particlesUnderRadius = new List<int>();   // Determines the particles that have to be attached to the GameObject in order to perform the grasp
+    private List<FlexActor> actors = new List<FlexActor>();     // Determines the flexActors that are coliding with the object
 
     #endregion
 
@@ -235,6 +237,7 @@ public class Grabber : MonoBehaviour {
         grabber_obj = gameObject;
         reset();
     }
+
     #endregion Private Methods
     
 }
