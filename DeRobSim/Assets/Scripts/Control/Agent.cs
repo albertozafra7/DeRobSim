@@ -8,7 +8,7 @@ public class Agent : MonoBehaviour
 {
     #region Custom Struct
 
-       public struct pose
+    public struct pose
     {
         public pose (Vector3 P, Quaternion R)
         {
