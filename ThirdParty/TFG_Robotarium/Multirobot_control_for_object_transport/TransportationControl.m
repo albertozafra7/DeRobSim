@@ -17,7 +17,7 @@
 
 % Author: Miguel Aranda, August 2022
 % Co-Author: Raquel Marcos, September 2022
-% Modification: Alberto Zafra-Navarro, July 2024
+% Modification: Alberto Zafra-Navarro, August 2024
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -176,7 +176,7 @@ function [ a ] = TransportationControl(positions, destinations, prev_pos, k1H, k
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     % We move the robots.        
-    a = U_f;    % Acceleration to be applied for the computed full control
+    a = U_f;    % Acceleration to be applied for the computed full control (x,y) x N_ROBOTS
 
     % We can saturate the accelerations, i.e., we only allow a maximum acceleration of value asat (in norm).
     % This makes the motion more natural, avoiding very high accelerations at the first time instants, which

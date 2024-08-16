@@ -4,6 +4,9 @@ using System;
 using System.Text; 
 using UnityEngine;
 using Unity.Mathematics;
+// Matlab Libraries
+using MathWorks.MATLAB.NET.Arrays; // import from MWArray.dll
+using MatlabControlLib;            // import the custom control Matlab Library
 
 
 public class TransportControl : MonoBehaviour
@@ -61,14 +64,6 @@ public class TransportControl : MonoBehaviour
     #endregion Main Methods
 
     #region Custom methods
-
-    // public void ApplyController(){
-    //     // Create the MATLAB instance 
-    //     MLApp.MLApp matlab = new MLApp.MLApp(); 
-
-    //     // Change to the directory where the function is located 
-    //     matlab.Execute(@"cd c:\temp\example");
-    // }
 
     #endregion Custom methods
 }
