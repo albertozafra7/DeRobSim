@@ -7,7 +7,7 @@ using UnityEngine;
 public class Agent : MonoBehaviour
 {
     #region Custom Struct
-
+    //[System.Serializable]   // For make the struct visible within the inspector
     public struct pose
     {
         public pose (Vector3 P, Quaternion R)
