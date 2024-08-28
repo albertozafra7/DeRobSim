@@ -28,6 +28,7 @@ public class Agent : MonoBehaviour
     #region Properties
 
     //--------- Public --------- 
+    public float dt = 0.1f;            // s
     public float maxVel = 10.0f;       // m/s
     public float maxAccel = 10.0f;     // m/s^2
     public bool resetPose = false;     // Resets the agent from the inspector
@@ -98,14 +99,18 @@ public class Agent : MonoBehaviour
 
     public void move(){
         // Uniformly accelerated motion
-        transform.position += currentVel*Time.deltaTime;
-        transform.Rotate(currentAngVel*Time.deltaTime, Space.World);
+        // transform.position += currentVel*Time.deltaTime;
+        // transform.Rotate(currentAngVel*Time.deltaTime, Space.World);
+        transform.position += currentVel*dt;
+        transform.Rotate(currentAngVel*dt, Space.World);
     }
 
     public void accelerate(){
         // Increment of the velocity at each timestep
-        currentVel += currentAccel*Time.deltaTime;
-        currentAngVel += currentAngAccel*Time.deltaTime;
+        // currentVel += currentAccel*Time.deltaTime;
+        // currentAngVel += currentAngAccel*Time.deltaTime;
+        currentVel += currentAccel*dt;
+        currentAngVel += currentAngAccel*dt;
 
         // We restrict the current velocities
         currentVel = restrictValues(currentVel, maxVel);
@@ -118,6 +123,21 @@ public class Agent : MonoBehaviour
         set_accel(Vector3.zero);
         set_angAccel(Vector3.zero);
         stopAgent = true;
+    }
+
+    public bool isAgentStopped(){
+        return stopAgent;
+    }
+
+    public void ActivateAgent(){
+        if(stopAgent){
+            // If the robot does not have any grabber component
+            if (grabber == null){
+                Debug.LogError("AGENT ERROR: NO GRABBER FOUND");
+            } else {
+                stopAgent = false;
+            }
+        }
     }
 
     public void ResetAgent(){
@@ -237,6 +257,11 @@ public class Agent : MonoBehaviour
         return activeGrab;
     }
 
+    //*** Delta Time ***//
+    public float get_dt(){
+        return dt;
+    }
+
 
     #endregion Getters
 
@@ -276,30 +301,30 @@ public class Agent : MonoBehaviour
     //*** Velocities/Accelerations ***//
     public void set_vel(Vector3 vel){
         // We restrict the velocity values to the maximum velocity
-        // vel = restrictValues(vel, maxVel);
+        currentVel = restrictValues(vel, maxVel);
 
-        currentVel = vel;
+        //currentVel = vel;
     }
 
     public void set_angVel(Vector3 angVel){
         // We restrict the velocity values to the maximum velocity
-        // angVel = restrictValues(angVel, maxVel);
+        currentAngVel = restrictValues(angVel, maxVel);
 
-        currentAngVel = angVel;
+        //currentAngVel = angVel;
     }
 
     public void set_accel(Vector3 accel){
         // We restrict the velocity values to the maximum acceleration
-        // accel = restrictValues(accel, maxAccel);
+        currentAccel = restrictValues(accel, maxAccel);
 
-        currentAccel = accel;
+        //currentAccel = accel;
     }
 
     public void set_angAccel(Vector3 angAccel){
         // We restrict the velocity values to the maximum velocity
-        // angAccel = restrictValues(angAccel, maxAccel);
+        currentAngAccel = restrictValues(angAccel, maxAccel);
 
-        currentAngAccel = angAccel;
+        //currentAngAccel = angAccel;
     }
 
     public void set_maxVel(float vel){
@@ -318,6 +343,11 @@ public class Agent : MonoBehaviour
 
     public void set_activeGrab(bool active){
         activeGrab = active;
+    }
+
+    //*** Delta Time ***//
+    public void set_dt(float deltaTime){
+        dt = deltaTime;
     }
 
     #endregion Setters

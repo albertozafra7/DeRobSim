@@ -20,6 +20,10 @@ public class TransportControl : MonoBehaviour
     public List<Transform> agentDest = new List<Transform>();       // Destination pose of the agents
 
     //+++ Control params +++
+    // Delta Time
+    [Header("Delta Time")]
+    public float dt =  0.033f;
+
     // Control gains
     [Header("Control Gains")]
     public float[] kh = new float[2] {6.0f,3.0f};                   // Deformation Gain
@@ -39,13 +43,13 @@ public class TransportControl : MonoBehaviour
     public bool draw_destiny = true;                                // Boolean used for drawing the destination of the object
 
     //--------- Private ---------
-    private float dt;
     private int n_agents;
     private float2x2 Rot90M = new float2x2(0.0f, -1.0f, 1.0f, 0.0f); // 90 deg rotation matrix to be used in the control
     private List<Agent.pose> agentPrevPose = new List<Agent.pose>(); // Previous agent pose
     private MatlabControlLib.MatlabControlLib controllerLib = new MatlabControlLib.MatlabControlLib();  // Object that uses the Matlab Library for the control algorithm
     private Vector3[] agentAccel;
     private bool agentsGrabbed = false;
+    private bool agentsActivated = true;
 
     #endregion Properties
 
@@ -53,7 +57,8 @@ public class TransportControl : MonoBehaviour
 
     void Awake()
     {
-        dt = Time.deltaTime;
+        // Time.deltaTime --> returns the time (in seconds) it took to complete the last frame
+        //dt = Time.deltaTime;
     }
 
     // Start is called before the first frame update
@@ -61,13 +66,19 @@ public class TransportControl : MonoBehaviour
     {
         n_agents = listAgents.Count;
 
-        for(int i = 0; i < n_agents; ++i)
+        for(int i = 0; i < n_agents; ++i){
+            // Store the initial poses
             agentPrevPose.Add(new Agent.pose(agentPose[i].position,agentPose[i].rotation));
+            // Modify the agent dt to coordinate the whole control
+            listAgents[i].set_dt(dt);
+        }
 
         if(draw_destiny)
             DrawDestination();
 
         agentAccel = new Vector3[n_agents];
+
+        ActivateAgents();
 
     }
 
@@ -85,20 +96,35 @@ public class TransportControl : MonoBehaviour
 
         // ------- Control part -------
         if(start_control){
+            if(!agentsActivated)
+                ActivateAgents();
             // We call the main control algorithm
-            Debug.Log("CONTROL::");
+            // Debug.LogWarning("AGENT POSE:" + Transform2Positions(agentPose));
+            // Debug.LogWarning("AGENT DEST:" + Transform2Positions(agentDest));
+            // Debug.LogWarning("AGENT PREV POSE:" + AgentPose2Positions(agentPrevPose));
             MWNumericArray accelerations = (MWNumericArray)controllerLib.TransportationControl(1,Transform2Positions(agentPose),Transform2Positions(agentDest),AgentPose2Positions(agentPrevPose),kh[0],kh[1],kg[0],kg[1],ks[0],ks[1],kgm[0],kgm[1],kth[0],kth[1],alpha_H,alpha_G,dt).GetValue(0);
-            Debug.Log(accelerations);
+            // Debug.LogWarning("CONTROL::" + accelerations);
             
             // We convert the output to a Vector3 to use it as accelerations within the agents
             MWNumericArray2Vector3(accelerations);
 
+            // We update the previous agentPose
+            for(int i = 0; i < n_agents; ++i)
+                // Store the initial poses
+                agentPrevPose[i] = new Agent.pose(agentPose[i].position,agentPose[i].rotation);
+
             // We send the accelerations to the agents
             SendAccels();
+
         }
 
         if(!start_control && agentsGrabbed)
             AllAgentsRelease();
+        
+        // If we are not performing any control we stop all the agents
+        if(!start_control)
+            StopAgents();
+
     }
     #endregion Main Methods
 
@@ -110,7 +136,8 @@ public class TransportControl : MonoBehaviour
 
         for(int i = 0; i < n_agents; ++i){
             positions[0,i] = Transformations[i].position.x;
-            positions[1,i] = Transformations[i].position.y;
+            positions[1,i] = Transformations[i].position.z;
+            //positions[1,i] = Transformations[i].position.y;
             //positions[2,i] = Transformations[i].position.z;
         }
 
@@ -122,7 +149,8 @@ public class TransportControl : MonoBehaviour
 
         for(int i = 0; i < n_agents; ++i){
             positions[0,i] = Poses[i].position.x;
-            positions[1,i] = Poses[i].position.y;
+            positions[1,i] = Poses[i].position.z;
+            //positions[1,i] = Poses[i].position.y;
             //positions[2,i] = Poses[i].position.z;
         }
 
@@ -133,7 +161,7 @@ public class TransportControl : MonoBehaviour
     private void MWNumericArray2Vector3(MWNumericArray accelerations){
         double[,] accels = (double[,])accelerations.ToArray(MWArrayComponent.Real);
         for(int i = 0; i < n_agents; ++i)
-            agentAccel[i] = new Vector3((float)accels[0,i], (float)accels[1,i], 0.0f);
+            agentAccel[i] = new Vector3((float)accels[0,i], 0.0f, (float)accels[1,i]);
     }
 
     // ------- Agents -------
@@ -154,6 +182,24 @@ public class TransportControl : MonoBehaviour
     private void SendAccels(){
         for(int i = 0; i < n_agents; ++i)
             listAgents[i].set_accel(agentAccel[i]);
+    }
+
+    private void StopAgents(){
+        foreach(Agent agent in listAgents){
+            if(!agent.isAgentStopped())
+                agent.StopAgent();
+        }
+        
+        agentsActivated = false;
+    }
+
+    private void ActivateAgents(){
+        foreach(Agent agent in listAgents){
+            if(agent.isAgentStopped())
+                agent.ActivateAgent();
+        }
+
+        agentsActivated = true;
     }
 
     // ------- Drawing -------
