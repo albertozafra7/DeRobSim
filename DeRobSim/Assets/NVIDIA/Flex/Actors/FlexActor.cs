@@ -152,7 +152,7 @@ namespace NVIDIA.Flex
         
         public void addGrabber(Grabber grabber){
             // If the object is not null and is not already within our class
-            Debug.Log("The grabber " + grabber.getGrabber().name + " has been added");
+            //Debug.Log("The grabber " + grabber.getGrabber().name + " has been added");
             if(grabber != null && grabberList.Find(a => a.getGrabber().name == grabber.getGrabber().name) == null)
                 grabberList.Add(grabber);
             

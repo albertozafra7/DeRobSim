@@ -1,0 +1,12 @@
+DeRobSim/Assets/Objects/Soles/Ballerinas[[:space:]]EVA/BallerinasEVA_s0_1.obj filter=lfs diff=lfs merge=lfs -text
+DeRobSim/Assets/Objects/Soles/Pikolinos[[:space:]]Naturally[[:space:]]Good/PikolinosNaturallyGood_s0_01.obj filter=lfs diff=lfs merge=lfs -text
+DeRobSim/Assets/Objects/Soles/Pikolinos[[:space:]]Puerto[[:space:]]Rico/PikolinosPuertoRico_s0_01.obj filter=lfs diff=lfs merge=lfs -text
+DeRobSim/Assets/Objects/Soles/Ballerinas[[:space:]]EVA/BallerinasEVA_s0_01.obj filter=lfs diff=lfs merge=lfs -text
+DeRobSim/Assets/Objects/Soles/Pikolinos[[:space:]]Naturally[[:space:]]Good/PikolinosNaturallyGood_s0_1.obj filter=lfs diff=lfs merge=lfs -text
+DeRobSim/Assets/Deformable_Objects/Soles/Pikolinos[[:space:]]Naturally[[:space:]]Good/PikolinosNaturallyGood_s0_01.prefab filter=lfs diff=lfs merge=lfs -text
+DeRobSim/Assets/Deformable_Objects/Soles/Pikolinos[[:space:]]Puerto[[:space:]]Rico/PikolinosPuertoRico_s0_01.prefab filter=lfs diff=lfs merge=lfs -text
+DeRobSim/Assets/Deformable_Objects/Soles/Ballerinas_EVA/BallerinasEVA_s0_01.prefab filter=lfs diff=lfs merge=lfs -text
+DeRobSim/Assets/Objects/Soles/Pikolinos[[:space:]]Naturally[[:space:]]Good/PikolinosNaturallyGood_s0_01.prefab filter=lfs diff=lfs merge=lfs -text
+DeRobSim/Assets/Objects/Soles/Pikolinos[[:space:]]Puerto[[:space:]]Rico/PikolinosPuertoRico_s0_1.obj filter=lfs diff=lfs merge=lfs -text
+DeRobSim/Assets/Objects/Soles/Pikolinos[[:space:]]Puerto[[:space:]]Rico/PikolinosPuertoRico_s0_01.prefab filter=lfs diff=lfs merge=lfs -text
+DeRobSim/Assets/Objects/Soles/Ballerinas[[:space:]]EVA/BallerinasEVA_s0_01.prefab filter=lfs diff=lfs merge=lfs -text
