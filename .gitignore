@@ -75,3 +75,18 @@ crashlytics-build.properties
 # Desktop ini
 desktop.ini
 **/desktop.ini
+
+
+# Large Objects
+DeRobSim/Assets/Objects/Soles/Ballerinas[[:space:]]EVA/BallerinasEVA_s0_1.obj
+DeRobSim/Assets/Objects/Soles/Pikolinos[[:space:]]Naturally[[:space:]]Good/PikolinosNaturallyGood_s0_01.obj
+DeRobSim/Assets/Objects/Soles/Pikolinos[[:space:]]Puerto[[:space:]]Rico/PikolinosPuertoRico_s0_01.obj
+DeRobSim/Assets/Objects/Soles/Ballerinas[[:space:]]EVA/BallerinasEVA_s0_01.obj
+DeRobSim/Assets/Objects/Soles/Pikolinos[[:space:]]Naturally[[:space:]]Good/PikolinosNaturallyGood_s0_1.obj
+DeRobSim/Assets/Deformable_Objects/Soles/Pikolinos[[:space:]]Naturally[[:space:]]Good/PikolinosNaturallyGood_s0_01.prefab
+DeRobSim/Assets/Deformable_Objects/Soles/Pikolinos[[:space:]]Puerto[[:space:]]Rico/PikolinosPuertoRico_s0_01.prefab
+DeRobSim/Assets/Deformable_Objects/Soles/Ballerinas_EVA/BallerinasEVA_s0_01.prefab
+DeRobSim/Assets/Objects/Soles/Pikolinos[[:space:]]Naturally[[:space:]]Good/PikolinosNaturallyGood_s0_01.prefab
+DeRobSim/Assets/Objects/Soles/Pikolinos[[:space:]]Puerto[[:space:]]Rico/PikolinosPuertoRico_s0_1.obj
+DeRobSim/Assets/Objects/Soles/Pikolinos[[:space:]]Puerto[[:space:]]Rico/PikolinosPuertoRico_s0_01.prefab
+DeRobSim/Assets/Objects/Soles/Ballerinas[[:space:]]EVA/BallerinasEVA_s0_01.prefab
