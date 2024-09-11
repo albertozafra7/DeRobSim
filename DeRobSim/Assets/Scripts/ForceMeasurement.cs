@@ -206,7 +206,7 @@ public class ForceMeasurement : MonoBehaviour
             }
 
             mesh.SetColors(colors);
-            // meshRenderer.material.SetColorArray("_Color", colors);
+            meshRenderer.material.SetColorArray("_Color", colors);
         }
     }
 
