@@ -1,5 +1,5 @@
 sceneSetups:
-- path: Assets/Scenes/DeformationControl.unity
+- path: Assets/Scenes/ForceMeasurementScene.unity
   isLoaded: 1
   isActive: 1
   isSubScene: 0

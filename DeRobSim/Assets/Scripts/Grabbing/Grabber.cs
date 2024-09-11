@@ -10,6 +10,7 @@ public class Grabber : MonoBehaviour {
 
     // ++++++++++++++ Public ++++++++++++++
     public float detectionRadius = 0.02f;   // Determines the detection ratius of the particles that are going to be attached to the GameObject
+    public bool drawRadius = false; // Determines if the radius is going to be drawn for debugging
 
     // ++++++++++++++ Private ++++++++++++++
     private GameObject grabber_obj = null;    // The gameObject to which the component is attached to
@@ -236,6 +237,17 @@ public class Grabber : MonoBehaviour {
     private void Start(){
         grabber_obj = gameObject;
         reset();
+    }
+
+    // +++++++++++ Drawing +++++++++++
+    private void OnDrawGizmosSelected()
+    {
+        if(drawRadius){
+            // Draw a yellow sphere at the transform's position with the detection radius
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawSphere(transform.position, detectionRadius);
+        }
+
     }
 
     #endregion Private Methods
