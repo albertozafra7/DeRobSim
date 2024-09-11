@@ -20,6 +20,10 @@ public class TransportControl : MonoBehaviour
     public List<Transform> agentDest = new List<Transform>();       // Destination pose of the agents
 
     //+++ Control params +++
+    // Control accuracy
+    [Header("Destination Error Threshold")]
+    public float dest_threshold = 0.25f;
+
     // Delta Time
     [Header("Delta Time")]
     public float dt =  0.033f;
@@ -50,6 +54,7 @@ public class TransportControl : MonoBehaviour
     private Vector3[] agentAccel;
     private bool agentsGrabbed = false;
     private bool agentsActivated = true;
+    private float currPose_error = float.PositiveInfinity; // Determine the system current error
 
     #endregion Properties
 
@@ -89,6 +94,11 @@ public class TransportControl : MonoBehaviour
         // We draw the destiny if it has not been drawn
         if(draw_destiny)
             DrawDestination();
+
+        // ------- Destination Evaluation -------
+        // If the agents are not close enough we continue with the control, otherwise, we stop the control
+        if(start_control && isCloseEnough(dest_threshold))
+            start_control = false;
 
         // ------- Agent Grab -------
         if(start_control && !agentsGrabbed)
@@ -201,6 +211,22 @@ public class TransportControl : MonoBehaviour
 
         agentsActivated = true;
     }
+
+    // ------- Error Computation -------
+    // Computes the overall error of the agents position
+    private bool isCloseEnough(float threshold){
+        float pose_error = 0.0f;
+        bool closeEnough = false;
+
+        for(int i = 0; i < n_agents; ++i)
+            pose_error += Vector3.Distance(agentPose[i].position, agentDest[i].position);
+        
+        currPose_error = pose_error;
+        if(pose_error < threshold)
+            closeEnough = true;
+        
+        return closeEnough;
+    } 
 
     // ------- Drawing -------
     private void DrawDestination(){

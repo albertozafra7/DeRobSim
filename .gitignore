@@ -76,6 +76,9 @@ crashlytics-build.properties
 desktop.ini
 **/desktop.ini
 
+# Matlab Libraries
+DeRobSim/Assets/Matlab/*.dll
+DeRobSim/Assets/Scripts/Control/MATLAB[[:space:]]LIBS/*.dll
 
 # Large Objects
 DeRobSim/Assets/Objects/Soles/Ballerinas[[:space:]]EVA/BallerinasEVA_s0_1.obj
