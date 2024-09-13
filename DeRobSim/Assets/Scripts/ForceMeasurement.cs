@@ -6,29 +6,31 @@ using NVIDIA.Flex;
 
 public class ForceMeasurement : MonoBehaviour
 {
-    public NVIDIA.Flex.FlexActor FlexComponent;
+    public NVIDIA.Flex.FlexActor FlexComponent; // Reference to the FlexActor that holds particle and force data
 
-    private FlexContainer m_container;
-    private FlexContainer.ParticleData particleData = new FlexContainer.ParticleData();
-    private Vector4[] _particles;
-    private Dictionary<int, List<int>> regions = new Dictionary<int, List<int>>();
-    private Dictionary<int, Vector3> regionForces = new Dictionary<int, Vector3>();
-    private Dictionary<int, Vector3> regionCenters = new Dictionary<int, Vector3>();
-    private Vector4 MeshCenter;
+    private FlexContainer m_container;  // Stores the container of the FlexComponent, which manages particles
+    private FlexContainer.ParticleData particleData = new FlexContainer.ParticleData(); // Used to retrieve and manipulate particle data of the scene/container
+    private Vector4[] _particles;   // Array used to hold the particles' position
+    private Dictionary<int, List<int>> regions = new Dictionary<int, List<int>>();  // Stores regions of particles indexed by integers (e.g., quadrants)
+    private Dictionary<int, Vector3> regionForces = new Dictionary<int, Vector3>(); // Tracks the force acting on each region
+    private Dictionary<int, Vector3> regionCenters = new Dictionary<int, Vector3>();// Stores the center of each region based on particle positions
+    private Vector4 MeshCenter; // The center of the mesh, used to calculate regions
     private Mesh mesh;
     private SkinnedMeshRenderer meshRenderer;
-    private float maxForce = 0;
-    private int iter_count = 0;
+    private float maxForce = 0; // Keeps track of the highest force magnitude across regions
+    private int iter_count = 0; // Iteration counter to reset force calculations periodically
 
     void Start()
     {
         // Initialize particle data
-        m_container = FlexComponent.GetContainer();
+        m_container = FlexComponent.GetContainer(); // We retrieve the particle container from the Flex component.
         
+        // We get the particle data of the container by mapping and unmapping the container
         particleData.container = m_container;
         particleData.particleData = FlexExt.MapParticleData(m_container.handle);
         FlexExt.UnmapParticleData(m_container.handle);
 
+        // We adjust the size of the particle array to the number of particles and store the particles of the container into the _particles array
         System.Array.Resize(ref _particles, FlexComponent.GetParticleNum());// FlexComponent.GetParticleNum());
         particleData.GetParticles(FlexComponent.GetParticleStartId(), FlexComponent.GetParticleNum(), _particles);
 
@@ -231,34 +233,47 @@ public class ForceMeasurement : MonoBehaviour
             // We get the instance of our FlexComponent to access to its particles
             FlexExt.Instance instance = FlexComponent.handle.instance;
 
-            // We generate an array that will tell us the indices of each particle within the container
+            // We generate an array that will tell us the indices of each particle within the deformable object (Flex Component)
             int[] indices = new int[instance.numParticles];
             // We copy the previously mentioned indices
             if (instance.numParticles > 0) FlexUtils.FastCopy(instance.particleIndices, indices);
 
-            if (FlexComponent is FlexSoftActor)
+            if (FlexComponent is FlexSoftActor) // Can be omitted --> This is for only execute the code with deformable objects
             {
                 // We generate a Buffer that will contain 
-                m_indexBuffers = new ComputeBuffer[n_clusters];
-                m_particleMaterials = new Material[n_clusters];
+                m_indexBuffers = new ComputeBuffer[n_clusters]; // We create an array that will have the particles' indices for each region/cluster
+                m_particleMaterials = new Material[n_clusters]; // We create an array that will have the materials' used for colorizing each region/cluster
 
-                mesh.subMeshCount = n_clusters;
+                mesh.subMeshCount = n_clusters;                 // We generate as many submeshes of the original mesh as the number of clusters that we want to have
+
+                // --------- Cluster Set Up ---------
                 for (int i = 0; i < n_clusters; ++i)
                 {
-                    int start = i == 0 ? 0 : FlexComponent.asset.shapeOffsets[i - 1];
-                    int count = FlexComponent.asset.shapeOffsets[i] - start;
-                    mesh.SetIndices(new int[count], MeshTopology.Points, i);
-                    m_indexBuffers[i] = new ComputeBuffer(count, 4);
-                    int[] shape = new int[count];
-                    for (int j = 0; j < count; ++j) shape[j] = indices[FlexComponent.asset.shapeIndices[start + j]];
-                    m_indexBuffers[i].SetData(shape);
-                    m_particleMaterials[i] = new Material(Shader.Find(PARTICLES_SHADER));
-                    m_particleMaterials[i].hideFlags = HideFlags.HideAndDontSave;
+                    int start = i == 0 ? 0 : FlexComponent.asset.shapeOffsets[i - 1];   // We determine the starting index of the particleData based on the predefined clusterization generated by the asset
+                    int count = FlexComponent.asset.shapeOffsets[i] - start;            // Number of particles within the cluster
+
+                    // Should be used only for meshes with a high tessellation
+                    mesh.SetIndices(new int[count], MeshTopology.Points, i);            // Sets the indices of the particles as individual vertices (points) of the mesh to modify the submesh (cluster) appearance
+                    
+
+                    m_indexBuffers[i] = new ComputeBuffer(count, 4);    // We create the cluster sub-array that will contain the list of indices of each particle within the indexBuffer
+
+                    int[] shape = new int[count];                       // Auxiliar array to hold the particle indices of this cluster
+
+                    for (int j = 0; j < count; ++j)
+                        shape[j] = indices[FlexComponent.asset.shapeIndices[start + j]];    // We assign the corresponding index of the particle to the temporal array for later copying it to the buffer
+                    
+                    m_indexBuffers[i].SetData(shape);   // Loads the particle indices for the cluster within the buffer
+
+                    m_particleMaterials[i] = new Material(Shader.Find(PARTICLES_SHADER));   // We create a new material using an specific shader to draw the particles on the mesh
+                    m_particleMaterials[i].hideFlags = HideFlags.HideAndDontSave;           // We make the material temporal (which means that it will not be saved on disk)
                 }
             }
 
-            mesh.bounds = FlexComponent.bounds;
+            mesh.bounds = FlexComponent.bounds; // We ensure that the FlexComponent and the mesh have the same bounds
 
+
+            // We update the mesh filter of the object adding the generated submeshes and materials, also we enable the shadowcasting of the renderer
             MeshFilter meshFilter = GetComponent<MeshFilter>();
             meshFilter.mesh = mesh;
 
