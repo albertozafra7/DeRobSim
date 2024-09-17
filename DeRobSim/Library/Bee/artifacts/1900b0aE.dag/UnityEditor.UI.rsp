@@ -124,6 +124,8 @@
 -r:"Assets/Matlab/MWArray.dll"
 -r:"Assets/Matlab/mycos_lib.dll"
 -r:"Assets/Matlab/mycos_libNative.dll"
+-r:"Assets/Plugins/PureHDF/lib/netstandard2.1/PureHDF.dll"
+-r:"Assets/Plugins/system.runtime.compilerservices.unsafe.6.0.0/lib/netstandard2.0/System.Runtime.CompilerServices.Unsafe.dll"
 -r:"Assets/Scripts/Control/MATLAB LIBS/MatlabControlLib.dll"
 -r:"Assets/Scripts/Control/MATLAB LIBS/MatlabControlLibNative.dll"
 -r:"D:/Program Files/Unity/2022.3.20f1-x86_64/Editor/Data/Managed/UnityEditor.Graphs.dll"

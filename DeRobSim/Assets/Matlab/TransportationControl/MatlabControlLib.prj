@@ -1,0 +1,155 @@
+<deployment-project plugin="plugin.ezdeploy" plugin-version="1.0">
+  <configuration build-checksum="3802873347" file="D:\alber\Documents\Cosas de la Universidad\Apuntes\Master\Internships\DeRobSim\ThirdParty\TFG_Robotarium\Multirobot_control_for_object_transport\MatlabControlLib.prj" location="D:\alber\Documents\Cosas de la Universidad\Apuntes\Master\Internships\DeRobSim\ThirdParty\TFG_Robotarium\Multirobot_control_for_object_transport" name="MatlabControlLib" preferred-package-location="D:\alber\Documents\Cosas de la Universidad\Apuntes\Master\Internships\DeRobSim\ThirdParty\TFG_Robotarium\Multirobot_control_for_object_transport\MatlabControlLib\for_redistribution" preferred-package-type="package.type.exe" target="target.ezdeploy.library" target-name="Library Compiler">
+    <param.appname>MatlabControlLib</param.appname>
+    <param.icon />
+    <param.icons />
+    <param.version>1.3</param.version>
+    <param.authnamewatermark>Alberto Zafra-Navarro</param.authnamewatermark>
+    <param.email>876628@unizar.es</param.email>
+    <param.company>University of Zaragoza</param.company>
+    <param.summary>Control of a team of mobile robots in a 3D working area with double-integrator dynamics.</param.summary>
+    <param.description>The goal of the controller is to keep, to the extent possible, the shape of the robots formation on its way from an initial to a desired configuration with different shape, size, centroid and rotation.
+
+The controller itself calculates the acceleration, from which the required velocity for the robots to reach the desired position in each iteration is obtained. 
+
+The code is based on the paper "Multirobot control with double-integrator dynamics and control barrier functions for deformable object transport," by  R. Herguedas, M. Aranda, G. Lopez-Nicolas, C. Sagues and Y. Mezouar, IEEE ICRA 2022
+
+Original Author: Miguel Aranda, August 2022
+Co-Author: Raquel Marcos, September 2022
+Modification and library optimization: Alberto Zafra-Navarro, August 2024</param.description>
+    <param.screenshot />
+    <param.guid />
+    <param.installpath.string>\University of Zaragoza\MatlabControlLib\</param.installpath.string>
+    <param.installpath.combo>option.installpath.programfiles</param.installpath.combo>
+    <param.logo />
+    <param.install.notes />
+    <param.target.install.notes />
+    <param.intermediate>${PROJECT_ROOT}\MatlabControlLib\for_testing</param.intermediate>
+    <param.files.only>${PROJECT_ROOT}\MatlabControlLib\for_redistribution_files_only</param.files.only>
+    <param.output>${PROJECT_ROOT}\MatlabControlLib\for_redistribution</param.output>
+    <param.logdir>${PROJECT_ROOT}\MatlabControlLib</param.logdir>
+    <param.enable.clean.build>false</param.enable.clean.build>
+    <param.user.defined.mcr.options />
+    <param.target.type>subtarget.net.component</param.target.type>
+    <param.support.packages />
+    <param.namespace />
+    <param.classorg />
+    <param.web.mcr>true</param.web.mcr>
+    <param.package.mcr>false</param.package.mcr>
+    <param.no.mcr>false</param.no.mcr>
+    <param.web.mcr.name>MyAppInstaller_web</param.web.mcr.name>
+    <param.package.mcr.name>MyAppInstaller_mcr</param.package.mcr.name>
+    <param.no.mcr.name>MyAppInstaller_app</param.no.mcr.name>
+    <param.windows.command.prompt>true</param.windows.command.prompt>
+    <param.create.log>false</param.create.log>
+    <param.log.file />
+    <param.user.only.registration>false</param.user.only.registration>
+    <param.assembly.net.version>option.net.version.four</param.assembly.net.version>
+    <param.net.enable.remoting>false</param.net.enable.remoting>
+    <param.assembly.type>false</param.assembly.type>
+    <param.encryption.key.file />
+    <param.net.tsa.enable>false</param.net.tsa.enable>
+    <param.net.tsa.assembly />
+    <param.net.tsa.interface />
+    <param.net.tsa.namespace />
+    <param.net.tsa.superclass>MatlabControlLib</param.net.tsa.superclass>
+    <param.net.tsa.metadata />
+    <param.net.tsa.metadata.assembly>D:\alber\Documents\Cosas de la Universidad\Apuntes\Master\Internships\DeRobSim\ThirdParty\TFG_Robotarium\Multirobot_control_for_object_transport</param.net.tsa.metadata.assembly>
+    <param.net.saved.interface />
+    <param.cpp.api>option.cpp.all</param.cpp.api>
+    <unset>
+      <param.icon />
+      <param.icons />
+      <param.screenshot />
+      <param.guid />
+      <param.installpath.string />
+      <param.installpath.combo />
+      <param.logo />
+      <param.install.notes />
+      <param.target.install.notes />
+      <param.intermediate />
+      <param.files.only />
+      <param.output />
+      <param.logdir />
+      <param.enable.clean.build />
+      <param.user.defined.mcr.options />
+      <param.support.packages />
+      <param.namespace />
+      <param.classorg />
+      <param.web.mcr />
+      <param.package.mcr />
+      <param.no.mcr />
+      <param.web.mcr.name />
+      <param.package.mcr.name />
+      <param.no.mcr.name />
+      <param.windows.command.prompt />
+      <param.create.log />
+      <param.log.file />
+      <param.user.only.registration />
+      <param.assembly.net.version />
+      <param.net.enable.remoting />
+      <param.assembly.type />
+      <param.encryption.key.file />
+      <param.net.tsa.enable />
+      <param.net.tsa.assembly />
+      <param.net.tsa.interface />
+      <param.net.tsa.namespace />
+      <param.net.tsa.superclass />
+      <param.net.tsa.metadata />
+      <param.net.tsa.metadata.assembly />
+      <param.net.saved.interface />
+      <param.cpp.api />
+    </unset>
+    <fileset.exports>
+      <file>${PROJECT_ROOT}\SingleTransportationControl2D.m</file>
+      <file>${PROJECT_ROOT}\TransportationControl2D.m</file>
+      <file>${PROJECT_ROOT}\TransportationControl2D_Debug.m</file>
+    </fileset.exports>
+    <fileset.classes>
+      <entity.package name="">
+        <entity.class name="MatlabControlLib">
+          <file>${PROJECT_ROOT}\SingleTransportationControl2D.m</file>
+          <file>${PROJECT_ROOT}\TransportationControl2D.m</file>
+          <file>${PROJECT_ROOT}\TransportationControl2D_Debug.m</file>
+        </entity.class>
+      </entity.package>
+    </fileset.classes>
+    <fileset.resources />
+    <fileset.depfun />
+    <fileset.package />
+    <fileset.examples />
+    <fileset.documentation />
+    <build-deliverables>
+      <file location="${PROJECT_ROOT}\MatlabControlLib\for_testing" name="MatlabControlLib_overview.html" optional="false">D:\alber\Documents\Cosas de la Universidad\Apuntes\Master\Internships\DeRobSim\ThirdParty\TFG_Robotarium\Multirobot_control_for_object_transport\MatlabControlLib\for_testing\MatlabControlLib_overview.html</file>
+      <file location="${PROJECT_ROOT}\MatlabControlLib\for_testing" name="MatlabControlLibNative.dll" optional="false">D:\alber\Documents\Cosas de la Universidad\Apuntes\Master\Internships\DeRobSim\ThirdParty\TFG_Robotarium\Multirobot_control_for_object_transport\MatlabControlLib\for_testing\MatlabControlLibNative.dll</file>
+      <file location="${PROJECT_ROOT}\MatlabControlLib\for_testing" name="MatlabControlLib.dll" optional="false">D:\alber\Documents\Cosas de la Universidad\Apuntes\Master\Internships\DeRobSim\ThirdParty\TFG_Robotarium\Multirobot_control_for_object_transport\MatlabControlLib\for_testing\MatlabControlLib.dll</file>
+    </build-deliverables>
+    <workflow />
+    <matlab>
+      <root>C:\Program Files\MATLAB\R2024b</root>
+      <toolboxes>
+        <toolbox name="matlabcoder" />
+      </toolboxes>
+      <toolbox>
+        <matlabcoder>
+          <enabled>true</enabled>
+        </matlabcoder>
+      </toolbox>
+    </matlab>
+    <platform>
+      <unix>false</unix>
+      <mac>false</mac>
+      <windows>true</windows>
+      <win2k>false</win2k>
+      <winxp>false</winxp>
+      <vista>false</vista>
+      <linux>false</linux>
+      <solaris>false</solaris>
+      <osver>10.0</osver>
+      <os32>false</os32>
+      <os64>true</os64>
+      <arch>win64</arch>
+      <matlab>true</matlab>
+    </platform>
+  </configuration>
+</deployment-project>

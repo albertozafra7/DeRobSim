@@ -145,7 +145,7 @@ public class ForceMeasurement : MonoBehaviour
                 maxForce = totalForce.magnitude;
         }
 
-        ColorizeMesh();
+        //ColorizeMesh();
 
         if(iter_count > 250)
         {
