@@ -117,15 +117,15 @@ function [ a ] = TransportationControl2D(positions, destinations, prev_pos, k1H,
     % -- Current --
     g = compute_centroid(P);  % Current formation centroid
     Pb = compute_relativePos(P,g);     % eq. 4
-    H = compute_H(Pb,Pdb,S);
+    [H, h1, h2] = compute_H(Pb,Pdb,S);
 
     % -- Previous (Used for computing the derivatives) --
     prev_P = prev_pos;
     prev_g = compute_centroid(prev_P);
     prev_Pb = compute_relativePos(prev_P,prev_g);
-    prev_H = compute_H(Pb,Pdb,S);
-    h1 = H(1,1);
-    h2 = abs(H(1,2));
+    [prev_H, ~, ~] = compute_H(Pb,Pdb,S);
+    % h1 = H(1,1);
+    % h2 = -H(1,2);
     
     % -- Errors --
     gamma = (1/2) * norm(Pb - H * Pdb, 'fro').^2;       % eq. 3 % Deformation difference
@@ -204,7 +204,7 @@ function [Pb] = compute_relativePos(P,g)
     Pb = P - g * ones(1,N); % eq. 5
 end
 
-function [H] = compute_H(Pb,Pdb, S)
+function [H, h1, h2] = compute_H(Pb,Pdb, S)
     h1 = trace(Pb * Pdb') / trace(Pdb * Pdb');          % eq. 7
     h2 = trace(Pb * (S * Pdb)') / trace(Pdb * Pdb');
     H = [h1 -h2; h2 h1];
