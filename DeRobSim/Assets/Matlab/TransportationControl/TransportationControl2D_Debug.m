@@ -22,7 +22,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [ a, U_f, U_D, U_g, U_th, U_gamma, U_s, U_H, U_G ] = TransportationControl2D_Debug(positions, destinations, prev_pos, k1H, k2H, k1G, k2G, k1s, k2s, k1g, k2g, k1th, k2th, alpha_H, alpha_G, dt, sd, thd, asat)
+function [ a, U_f, U_D, U_g, U_th, U_gamma, U_s, U_H, U_G, positions, destinations, prev_pos, gamma, eg, es, eth ] = TransportationControl2D_Debug(positions, destinations, prev_pos, k1H, k2H, k1G, k2G, k1s, k2s, k1g, k2g, k1th, k2th, alpha_H, alpha_G, dt, sd, thd, asat)
 
     % ++++++++++ Optional parameters evaluation ++++++++++
 
