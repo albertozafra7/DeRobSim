@@ -28,7 +28,8 @@ public class DebugLogger : MonoBehaviour
     public List<FlexActor> registeredFlexObjects = new List<FlexActor>();   // List of deformable objects that we want to keep track (remember that under the name of the GameObject, the particles' properties will be stored)
 
     [Header("Control Params")]
-    public Dictionary<string,Vector3[]> registeredMatlabParams = new Dictionary<string,Vector3[]>();
+    public Dictionary<string,Vector3[]> registeredMatlabParams = new Dictionary<string,Vector3[]>();    // Dictionary used to register the 3xn_agents control values
+    public Dictionary<string,double> registeredMatlabScalars = new Dictionary<string, double>();        // Dictionary used to register the scalar control parameters
 
     // +++ Control sequence param +++
     [Header("File Reseting")]
@@ -182,6 +183,13 @@ public class DebugLogger : MonoBehaviour
         if(registeredMatlabParams.Count > 0){
             // We add a dataset per param
             foreach(KeyValuePair<string, Vector3[]> kvp in registeredMatlabParams){
+                timestampGroup[kvp.Key] = kvp.Value;
+            }
+        }
+        
+        if(registeredMatlabScalars.Count > 0){
+            // We add a dataset per param
+            foreach(KeyValuePair<string, double> kvp in registeredMatlabScalars){
                 timestampGroup[kvp.Key] = kvp.Value;
             }
         }

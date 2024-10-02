@@ -67,7 +67,7 @@ public class TransportControl2D : MonoBehaviour
     private bool agentsActivated = true;
     private float currPose_error = float.PositiveInfinity; // Determine the system current error
     private DebugLogger simLogger;  // Object used for logging the simulation
-    private int n_matlabParams = 9; // Number of outputs received from matlab when debugging
+    private int n_matlabParams = 16; // Number of outputs received from matlab when debugging
 
     #endregion Properties
 
@@ -227,6 +227,10 @@ public class TransportControl2D : MonoBehaviour
         return vector3s;
     }
 
+    private double MWNumericArray2DoubleScalar(MWNumericArray matlabArray){
+        return matlabArray.ToScalarDouble();
+    }
+
     // ------- Agents -------
     private void AllAgentsGrab(){
         foreach(Agent agent in listAgents)
@@ -328,6 +332,21 @@ public class TransportControl2D : MonoBehaviour
         simLogger.registeredMatlabParams.Add("U_H", null);
         // - U_G
         simLogger.registeredMatlabParams.Add("U_G", null);
+        // - Positions
+        simLogger.registeredMatlabParams.Add("positions", null);
+        // - Destinations
+        simLogger.registeredMatlabParams.Add("destinations", null);
+        // - Prev_Positions
+        simLogger.registeredMatlabParams.Add("prev_positions", null);
+        // +++++++ ERRORS +++++++
+        // - gamma
+        simLogger.registeredMatlabScalars.Add("gamma", Double.NaN);
+        // - eg
+        simLogger.registeredMatlabScalars.Add("eg", Double.NaN);
+        // - es
+        simLogger.registeredMatlabScalars.Add("es", Double.NaN);
+        // - eth
+        simLogger.registeredMatlabScalars.Add("eth", Double.NaN);
     }
 
     private void UpdateMatlabParams(MWArray[] matlabParams){
@@ -349,6 +368,21 @@ public class TransportControl2D : MonoBehaviour
         simLogger.registeredMatlabParams["U_H"] = MWNumericArray2Vector3((MWNumericArray)matlabParams.GetValue(7));
         // - U_G
         simLogger.registeredMatlabParams["U_G"] = MWNumericArray2Vector3((MWNumericArray)matlabParams.GetValue(8));
+        // - Positions
+        simLogger.registeredMatlabParams["positions"] = MWNumericArray2Vector3((MWNumericArray)matlabParams.GetValue(9));
+        // - Destinations
+        simLogger.registeredMatlabParams["destinations"] = MWNumericArray2Vector3((MWNumericArray)matlabParams.GetValue(10));
+        // - Prev_Positions
+        simLogger.registeredMatlabParams["prev_positions"] = MWNumericArray2Vector3((MWNumericArray)matlabParams.GetValue(11));
+        // +++++++ ERRORS +++++++
+        // - gamma
+        simLogger.registeredMatlabScalars["gamma"] = MWNumericArray2DoubleScalar((MWNumericArray)matlabParams.GetValue(12));
+        // - eg
+        simLogger.registeredMatlabScalars["eg"] = MWNumericArray2DoubleScalar((MWNumericArray)matlabParams.GetValue(13));
+        // - es
+        simLogger.registeredMatlabScalars["es"] = MWNumericArray2DoubleScalar((MWNumericArray)matlabParams.GetValue(14));
+        // - eth
+        simLogger.registeredMatlabScalars["eth"] = MWNumericArray2DoubleScalar((MWNumericArray)matlabParams.GetValue(15));        
 
     }
 
