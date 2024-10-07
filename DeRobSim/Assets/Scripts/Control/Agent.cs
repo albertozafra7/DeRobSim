@@ -162,12 +162,12 @@ public class Agent : MonoBehaviour
     private Vector3 restrictValues(Vector3 value, float maxValue){
         Vector3 new_value = new Vector3(value.x, value.y, value.z);
         
-        if(value.x > maxValue)
-            new_value.x = maxValue;
-        if(value.y > maxValue)
-            new_value.y = maxValue;
-        if(value.z > maxValue)
-            new_value.z = maxValue;
+        if(Mathf.Abs(value.x) > maxValue)
+            new_value.x = (maxValue * value.x) / Mathf.Abs(value.x);
+        if(Mathf.Abs(value.y) > maxValue)
+            new_value.y = (maxValue * value.y) / Mathf.Abs(value.y);
+        if(Mathf.Abs(value.z) > maxValue)
+            new_value.z = (maxValue * value.z) / Mathf.Abs(value.z);
         
         return new_value;
     }
