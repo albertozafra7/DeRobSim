@@ -161,7 +161,11 @@ function [ a, U_f, U_D, U_g, U_th, U_gamma, U_s, U_H, U_G, positions, destinatio
 
     U_H = k1H * (H * Pdb - Pb) + k2H * (Hdot * Pdb - Pbdot);                    % eq. 8
 
-    U_G = k1G * (Pb * Pdbp * Pdb - Pb) + k2G * (Pbdot * Pdbp * Pdb - Pbdot);    % eq. 9
+    k1G_multiplier = (Pb * Pdbp * Pdb - Pb) .* [0 0 0 0;1 1 1 1];
+    k1G_multiplier(k1G_multiplier < 10e-5) = 0;
+
+
+    U_G = k1G * k1G_multiplier + k2G * (Pbdot * Pdbp * Pdb - Pbdot);    % eq. 9
     
     U_gamma = alpha_H * U_H + alpha_G * U_G;                                    % eq. 10
 
@@ -191,6 +195,11 @@ function [ a, U_f, U_D, U_g, U_th, U_gamma, U_s, U_H, U_G, positions, destinatio
             a(:,i) = asat * a(:,i) / norm(a(:,i));
         end
     end
+
+    f=100;
+    % f=1/20; %frequency [Hz]
+    amplitude = 10;    %amplitude [V]
+    a = [0 0 0 0;1 1 1 1] .* amplitude .* sin(2*pi*f*k1H);
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end

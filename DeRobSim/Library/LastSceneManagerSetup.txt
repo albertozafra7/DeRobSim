@@ -1,5 +1,5 @@
 sceneSetups:
-- path: Assets/Scenes/Control/2DTests.unity
+- path: Assets/Scenes/SolesVideoRecorder.unity
   isLoaded: 1
   isActive: 1
   isSubScene: 0

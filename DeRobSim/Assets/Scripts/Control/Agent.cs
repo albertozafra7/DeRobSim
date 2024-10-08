@@ -73,8 +73,8 @@ public class Agent : MonoBehaviour
             else
                 ReleaseObject();
                 
-            move();
             accelerate();
+            move();
         }
     }
 

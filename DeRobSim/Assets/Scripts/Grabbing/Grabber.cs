@@ -234,7 +234,7 @@ public class Grabber : MonoBehaviour {
 
     }
 
-    private void Start(){
+    private void Awake(){
         grabber_obj = gameObject;
         reset();
     }
