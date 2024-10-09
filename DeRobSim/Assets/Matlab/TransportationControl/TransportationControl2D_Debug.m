@@ -161,9 +161,10 @@ function [ a, U_f, U_D, U_g, U_th, U_gamma, U_s, U_H, U_G, positions, destinatio
 
     U_H = k1H * (H * Pdb - Pb) + k2H * (Hdot * Pdb - Pbdot);                    % eq. 8
 
-    k1G_multiplier = (Pb * Pdbp * Pdb - Pb) .* [0 0 0 0;1 1 1 1];
+    % As Matlab has a lot of precision we decided to round up the results
+    % for ensuring that a value close to 0 is 0
+    k1G_multiplier = (Pb * Pdbp * Pdb - Pb);
     k1G_multiplier(k1G_multiplier < 10e-5) = 0;
-
 
     U_G = k1G * k1G_multiplier + k2G * (Pbdot * Pdbp * Pdb - Pbdot);    % eq. 9
     
@@ -196,10 +197,10 @@ function [ a, U_f, U_D, U_g, U_th, U_gamma, U_s, U_H, U_G, positions, destinatio
         end
     end
 
-    f=100;
-    % f=1/20; %frequency [Hz]
-    amplitude = 10;    %amplitude [V]
-    a = [0 0 0 0;1 1 1 1] .* amplitude .* sin(2*pi*f*k1H);
+    % f=100;
+    % % f=1/20; %frequency [Hz]
+    % amplitude = 10;    %amplitude [V]
+    % a = [0 0 0 0;1 1 1 1] .* amplitude .* sin(2*pi*f*k1H);
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end

@@ -57,6 +57,8 @@ public class TransportControl2D : MonoBehaviour
     public string log_fileName = "TransportControl2D_log";       // Filename used for the log file
     public string log_filePath = "SimulationLogs";                  // Filepath used for the log file
 
+    public float saveInterval = 0.25F;
+
     //--------- Private ---------
     private int n_agents;
     private float2x2 Rot90M = new float2x2(0.0f, -1.0f, 1.0f, 0.0f); // 90 deg rotation matrix to be used in the control
@@ -307,6 +309,9 @@ public class TransportControl2D : MonoBehaviour
         // We set the filepath
         simLogger.fileName = log_fileName + "_" +DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".h5";
         simLogger.filePath = log_filePath;
+
+        // We set the saveInterval
+        simLogger.updateSaveInterval = saveInterval;
 
         // We intialize the debug logger
         simLogger.InitializeData();

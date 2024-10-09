@@ -17,6 +17,9 @@ public class DebugLogger : MonoBehaviour
     //public bool appendTimestamp2file = false;         // It determines if the current date and time will be appended to the filename
     public bool saveLog = true;                         // Boolean for storing the data
 
+    [Header("Save Frequency")]
+    public float updateSaveInterval = 0.25F;
+
     // +++ Objects to be logged +++
     [Header("GameObjects")]
     public List<Transform> registeredTransforms = new List<Transform>();    // List that will keep all the standard gameobjects that we want to save (It will use the GameObject name as the name of the group in the HDF5 file)
@@ -38,6 +41,7 @@ public class DebugLogger : MonoBehaviour
     //--------- Private ---------
     private string absoluteFilePath;
     private H5File h5file = new H5File();
+    private float lastSaveInterval;
 
     #endregion Properties
 
@@ -51,6 +55,9 @@ public class DebugLogger : MonoBehaviour
         h5file["Unity"] = new H5Group();
         // We add the Matlab Group
         h5file["Matlab"] = new H5Group();
+
+        // We update the lastSaveInterval
+        lastSaveInterval = Time.realtimeSinceStartup;
     }
 
     // Update is called once per frame
@@ -66,6 +73,11 @@ public class DebugLogger : MonoBehaviour
             absoluteFilePath = Path.Combine(Application.dataPath, filePath, fileName);
     }
 
+    void OnDestroy(){
+        // We write the information into the file
+        h5file.Write(absoluteFilePath);
+    }
+    
     #endregion Main Methods
 
     #region Custom Methods
@@ -80,29 +92,34 @@ public class DebugLogger : MonoBehaviour
     }
 
     public void saveData(){
-        string currentTime = Time.realtimeSinceStartup.ToString();
-        
-        // We add a new group based on the current timestamp
-        H5Group UnityRootGroup = (H5Group)h5file["Unity"];   // Pointer to the Unity's group in the HDF5
-        UnityRootGroup[currentTime] = new H5Group();         // We create the new timestamp group
+        // If we have not saved for a long time
+        float timeNow = Time.realtimeSinceStartup;
+        if(timeNow - lastSaveInterval > updateSaveInterval){
 
-        // We add the different groups to the HDF5 file with the required information
-        AddTransforms((H5Group)UnityRootGroup[currentTime]);
-        AddAgents((H5Group)UnityRootGroup[currentTime]);
-        AddDeformableObjects((H5Group)UnityRootGroup[currentTime]);
+            string currentTime = Time.realtimeSinceStartup.ToString();
+            
+            // We add a new group based on the current timestamp
+            H5Group UnityRootGroup = (H5Group)h5file["Unity"];   // Pointer to the Unity's group in the HDF5
+            UnityRootGroup[currentTime] = new H5Group();         // We create the new timestamp group
 
-        // If we are logging the control params we add the Matlab info to the file
-        if(registeredMatlabParams.Count > 0){
-            // We get the pointer to the current group
-            H5Group matlabRootGroup = (H5Group)h5file["Matlab"];
-            matlabRootGroup[currentTime] = new H5Group();
-            // We add the params to the HDF5 file
-            AddMatlabParams((H5Group)matlabRootGroup[currentTime]);
+            // We add the different groups to the HDF5 file with the required information
+            AddTransforms((H5Group)UnityRootGroup[currentTime]);
+            AddAgents((H5Group)UnityRootGroup[currentTime]);
+            AddDeformableObjects((H5Group)UnityRootGroup[currentTime]);
+
+            // If we are logging the control params we add the Matlab info to the file
+            if(registeredMatlabParams.Count > 0){
+                // We get the pointer to the current group
+                H5Group matlabRootGroup = (H5Group)h5file["Matlab"];
+                matlabRootGroup[currentTime] = new H5Group();
+                // We add the params to the HDF5 file
+                AddMatlabParams((H5Group)matlabRootGroup[currentTime]);
+            }
+
+            lastSaveInterval = Time.realtimeSinceStartup;
+            
         }
-        
-
-        // We write the information into the file
-        h5file.Write(absoluteFilePath);
+   
     }
 
     public void resetData(){
