@@ -19,8 +19,8 @@ public class Grabber : MonoBehaviour {
     private bool relGrasp = false;      // Determines if the object has been released
     private bool onReleasing = true;    // Determines if the object is on the releasing processs
     private List<int> particlesUnderRadius = new List<int>();   // Determines the particles that have to be attached to the GameObject in order to perform the grasp
-    private List<FlexActor> actors = new List<FlexActor>();     // Determines the flexActors that are coliding with the object
-
+    public List<FlexActor> actorList = new List<FlexActor>();     // Determines the flexActors that are coliding with the object
+    private SphereCollider grabberCollider;
     #endregion
 
     #region Public Methods
@@ -56,6 +56,7 @@ public class Grabber : MonoBehaviour {
     // }
 
     public void grab(){
+        addGrabbers2Actors();
         if(!isGrabbing())
             setOnDetecting();
         else
@@ -234,9 +235,31 @@ public class Grabber : MonoBehaviour {
 
     }
 
+    private void addGrabbers2Actors(){
+        foreach(FlexActor actor in actorList){
+            actor.addGrabber(this);
+        }
+    }
+
+    private void removeGrabbersFromActors(){
+        foreach (FlexActor actor in actorList){
+            actor.removeGrabber(this);
+        }
+    }
+
     private void Awake(){
+        // Set up of the grabber_obj
         grabber_obj = gameObject;
+
+        // We create the collider that will detect the flex actors on the neighborhoud
+        grabberCollider = gameObject.AddComponent<SphereCollider>();
+        grabberCollider.center = Vector3.zero;
+        grabberCollider.radius = detectionRadius;
+        grabberCollider.isTrigger = true;
+
+        // Intialize all its properties
         reset();
+
     }
 
     // +++++++++++ Drawing +++++++++++
@@ -249,6 +272,88 @@ public class Grabber : MonoBehaviour {
         }
 
     }
+
+    // +++++++++++ Flex Actor Management +++++++++++
+
+    private void OnTriggerEnter(Collider other)
+    {   
+        
+        if(other.gameObject.name == "FlexDetectShapes"){
+
+            if(!activeGrab){
+                FlexActor[] DetectedActors = FindObjectsOfType<FlexActor>();
+                FlexActor closestActor = null;
+                foreach(FlexActor actor in DetectedActors){
+                    if(actor != null && actorList.Find(a => a.gameObject.name == actor.gameObject.name) == null){
+                        if(closestActor == null)
+                            closestActor = actor;
+                        else if(Vector3.Distance(closestActor.transform.position, other.transform.position) > Vector3.Distance(actor.transform.position, other.transform.position))
+                            closestActor = actor;                 
+                    }
+                }
+
+                if(closestActor != null && (Vector3.Distance(other.bounds.ClosestPoint(transform.position),transform.position) <= detectionRadius)){
+                    actorList.Add(closestActor);
+                    closestActor.addGrabber(this);
+                }
+
+            }  
+        
+        }
+    }
+
+    // This aims to add the FlexActors that have been touched with the object, meanwhile the object was grabbing something
+    private void OnTriggerStay(Collider other)
+    {   
+        
+        if(other.gameObject.name == "FlexDetectShapes"){
+
+            if(!activeGrab){
+                FlexActor[] DetectedActors = FindObjectsOfType<FlexActor>();
+                FlexActor closestActor = null;
+                foreach(FlexActor actor in DetectedActors){
+                    if(actor != null){
+                        if(closestActor == null)
+                            closestActor = actor;
+                        else if(Vector3.Distance(closestActor.transform.position, other.transform.position) > Vector3.Distance(actor.transform.position, other.transform.position))
+                            closestActor = actor;                 
+                    }
+                }
+
+                if(closestActor != null && actorList.Find(a => a.gameObject.name == closestActor.gameObject.name) == null){
+                    if(Vector3.Distance(other.bounds.ClosestPoint(transform.position),transform.position) <= detectionRadius){
+                        actorList.Add(closestActor);
+                        closestActor.addGrabber(this);
+                    }
+                }
+
+            }  
+        
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {        
+        if(other.gameObject.name == "FlexDetectShapes"){
+            if(!activeGrab){
+                FlexActor[] DetectedActors = FindObjectsOfType<FlexActor>();
+                FlexActor closestActor = null;
+                foreach(FlexActor actor in DetectedActors){
+                    if(actor != null && actorList.Find(a => a.gameObject.name == actor.gameObject.name) != null){
+                        if(closestActor == null)
+                            closestActor = actor;
+                        else if(Vector3.Distance(closestActor.transform.position, other.transform.position) > Vector3.Distance(actor.transform.position, other.transform.position))
+                            closestActor = actor;                 
+                    }
+                }
+                closestActor.removeGrabber(this);
+                actorList.Remove(closestActor);
+            }
+        
+        }
+    }
+
+ 
 
     #endregion Private Methods
     

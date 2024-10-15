@@ -544,6 +544,7 @@ namespace NVIDIA.Flex
             {
                 m_particleBuffer = new ComputeBuffer(m_maxParticles, 16);
 
+                // +++++++++++++++ Here the COLLIDERS of the deformable objects are created +++++++++++++++
                 m_flexScene = new GameObject("FlexScene").AddComponent<FlexScene>();
                 m_flexScene.gameObject.hideFlags = HideFlags.DontSave | HideFlags.HideInHierarchy;
                 m_flexScene.container = this;

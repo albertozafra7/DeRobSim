@@ -146,8 +146,10 @@ namespace NVIDIA.Flex
 
             if (lower.x < upper.x && lower.y < upper.y && lower.z < upper.z)
             {
+                // Here the center and size of the collider of the deformable objects is edited
                 m_trigger.transform.position = (upper + lower) * 0.5f;
-                m_trigger.size = (upper - lower) + Vector3.one * m_scene.container.radius;
+                m_trigger.size = (upper - lower); // This adjusts the collider to the object size
+                // m_trigger.size = (upper - lower) + Vector3.one * m_scene.container.radius; // This gives a safety margin of 0.2 to the collider
             }
         }
 

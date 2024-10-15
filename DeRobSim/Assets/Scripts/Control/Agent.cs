@@ -42,7 +42,7 @@ public class Agent : MonoBehaviour
     public Vector3 currentAccel;       // holonomic robot m/s^2
     public Vector3 currentAngAccel;    // Angular acceleration degrees/s^2
     private Grabber grabber;           // Grabber object
-    public setActiveGrab grabber_act;  // Responsible of grabbing --> TODO: Correct
+    // public setActiveGrab grabber_act;  // Responsible of grabbing --> TODO: Correct
     
         
     #endregion Properties
@@ -53,7 +53,7 @@ public class Agent : MonoBehaviour
         resetPose = false;
         set_restPose(new pose(transform.position,transform.rotation));
         grabber = gameObject.GetComponent<Grabber>();
-        grabber_act = gameObject.GetComponent<setActiveGrab>(); // TODO: Correct
+        // grabber_act = gameObject.GetComponent<setActiveGrab>(); // TODO: Correct
 
         // If the robot does not have any grabber component
         if (grabber == null){
@@ -76,6 +76,9 @@ public class Agent : MonoBehaviour
             accelerate();
             move();
         }
+
+        if(!activeGrab)
+            ReleaseObject();
     }
 
     #endregion Main Methods
@@ -99,16 +102,12 @@ public class Agent : MonoBehaviour
 
     public void move(){
         // Uniformly accelerated motion
-        // transform.position += currentVel*Time.deltaTime;
-        // transform.Rotate(currentAngVel*Time.deltaTime, Space.World);
         transform.position += currentVel*dt;
         transform.Rotate(currentAngVel*dt, Space.World);
     }
 
     public void accelerate(){
         // Increment of the velocity at each timestep
-        // currentVel += currentAccel*Time.deltaTime;
-        // currentAngVel += currentAngAccel*Time.deltaTime;
         currentVel += currentAccel*dt;
         currentAngVel += currentAngAccel*dt;
 
@@ -146,17 +145,15 @@ public class Agent : MonoBehaviour
     }
 
     public void GrabObject(){
-        // grabber.grab();
-        grabber_act.grabbed = true;         // TODO: CORRECT
+        grabber.grab();
+        // grabber_act.grabbed = true;         // TODO: CORRECT
         activeGrab = true;
     }
 
     public void ReleaseObject(){
-        if(activeGrab){
-            // grabber.release();
-            grabber_act.grabbed = false;    // TODO: CORRECT
-            activeGrab = false;
-        }
+        grabber.release();
+        // grabber_act.grabbed = false;    // TODO: CORRECT
+        activeGrab = false;
     }
 
     private Vector3 restrictValues(Vector3 value, float maxValue){
