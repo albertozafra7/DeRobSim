@@ -180,16 +180,11 @@ public class Grabber : MonoBehaviour {
         float helpDistMin = 1000;
         float indicesMin = -1;
         float[] ret = new float[2];
-        Vector3[] vec3 = new Vector3[allParticles.Length];
         for (int i = 0; i < allParticles.Length; i++)
         {
-            vec3[i] = allParticles[i];
-        }
-        for (int i = 0; i < allParticles.Length; i++)
-        {
-            if (Vector3.Distance(grabber_obj.transform.position, vec3[i]) < helpDistMin)
+            if (Vector3.Distance(grabber_obj.transform.position, allParticles[i]) < helpDistMin)
             {
-                helpDistMin = Vector3.Distance(grabber_obj.transform.position, vec3[i]);
+                helpDistMin = Vector3.Distance(grabber_obj.transform.position, allParticles[i]);
                 indicesMin = i;
             }
 
@@ -217,15 +212,9 @@ public class Grabber : MonoBehaviour {
     private List<int> FindParticlesInRadius(Vector4[] allParticles, float radius){
         List<int> DetectedParticles = new List<int>();
 
-        Vector3[] vec3 = new Vector3[allParticles.Length];
         for (int i = 0; i < allParticles.Length; i++)
         {
-            vec3[i] = allParticles[i];
-        }
-
-        for (int i = 0; i < allParticles.Length; i++)
-        {
-            if (Vector3.Distance(grabber_obj.transform.position, vec3[i]) <= radius)
+            if (Vector3.Distance(grabber_obj.transform.position, allParticles[i]) <= radius)
             {
                 DetectedParticles.Add(i);
             }

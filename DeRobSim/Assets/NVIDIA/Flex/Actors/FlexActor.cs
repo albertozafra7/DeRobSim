@@ -286,7 +286,6 @@ namespace NVIDIA.Flex
                 {
                     FlexExt.Instance instance = m_instanceHandle.instance;
                     m_indices = new int[m_currentAsset.maxParticles];
-                    // Debug.LogError("Max Particles = " + m_currentContainer.maxParticles);
                     m_indexCount = instance.numParticles;
                     if (m_indexCount > 0){
                         FlexUtils.FastCopy(instance.particleIndices, 0, ref m_indices[0], 0, sizeof(int) * m_indexCount);
@@ -294,9 +293,6 @@ namespace NVIDIA.Flex
                         // particle_start_id = m_currentContainer.maxParticles - m_indices[0] - m_indices.Length;
                         particle_num = m_indices.Length;           // m_currentContainer.maxParticles;            
                     } 
-                    // Debug.LogError("Start index =" + m_indices[0]);
-                    // Debug.LogError("Last index =" + m_indices[m_indices.Length-1]);
-                    // Debug.LogError("size =" + m_indices.Length);
                 }
             }
         }
@@ -334,16 +330,16 @@ namespace NVIDIA.Flex
             float helpDistMin = 1000;
             float indicesMin = -1;
             float[] ret = new float[2];
-            Vector3[] vec3 = new Vector3[allParticles.Length];
+            // Vector3[] vec3 = new Vector3[allParticles.Length];
+            // for (int i = 0; i < allParticles.Length; i++)
+            // {
+            //     vec3[i] = allParticles[i];
+            // }
             for (int i = 0; i < allParticles.Length; i++)
             {
-                vec3[i] = allParticles[i];
-            }
-            for (int i = 0; i < allParticles.Length; i++)
-            {
-                if (Vector3.Distance(pos, vec3[i]) < helpDistMin)
+                if (Vector3.Distance(pos, allParticles[i]) < helpDistMin)
                 {
-                    helpDistMin = Vector3.Distance(pos, vec3[i]);
+                    helpDistMin = Vector3.Distance(pos, allParticles[i]);
                     indicesMin = i;
                 }
 
@@ -359,21 +355,13 @@ namespace NVIDIA.Flex
         {
             List<int> particlesUnderRadius = new List<int>();
 
-            Vector3[] vec3 = new Vector3[allParticles.Length];
             for (int i = 0; i < allParticles.Length; i++)
             {
-                vec3[i] = allParticles[i];
-            }
-
-            for (int i = 0; i < allParticles.Length; i++)
-            {
-                if (Vector3.Distance(pos, vec3[i]) <= radius)
+                if (Vector3.Distance(pos, allParticles[i]) <= radius)
                 {
                     particlesUnderRadius.Add(i);
                 }
             }
-
-            // GameObject[] arrayOfGameObjects = particlesUnderRadius.ToArray();
 
             return particlesUnderRadius;
 
@@ -424,7 +412,7 @@ namespace NVIDIA.Flex
                 //if grab move particle in cube position
                 if(grabberList.Exists(a => a.isGrabbing() == true)){
                     List<Grabber> auxList = grabberList.FindAll(a => a.getActiveGrab());
-                    Debug.Log("ActiveGrab");
+                    // Debug.Log("ActiveGrab");
                     foreach(Grabber g in auxList){
                         foreach (int idPart in g.getDetectedParticles())
                             {
@@ -438,13 +426,13 @@ namespace NVIDIA.Flex
                 //check if trigger is active and there is a particle next
                 if(grabberList.Exists(a => a.isOnDetecting() == true)){
                     List<Grabber> auxList = grabberList.FindAll(a => a.isOnDetecting());
-                    Debug.Log("OneTimePick");
+                    // Debug.Log("OneTimePick");
                     foreach(Grabber g in auxList){
-                        Debug.Log("Closest particle at " + g.GetDistanceToClosestParticle(allParticles));
+                        // Debug.Log("Closest particle at " + g.GetDistanceToClosestParticle(allParticles));
                         if (g.GetDistanceToClosestParticle(allParticles) <= g.getDetectionRadius()) { // Maybe change for a method within the class
                             //particlesUnderRadius = FindParticleInRadius(allParticles, grabber_.transform.position, 0.06f);
                             g.DetectParticles(allParticles);
-                            Debug.Log("Detected Particles Count " + g.getDetectedParticlesCount());
+                            // Debug.Log("Detected Particles Count " + g.getDetectedParticlesCount());
                             if(g.getDetectedParticlesCount() > 0)
                                 g.setOnGrabbing();
                             // if (g.getDetectedParticlesCount() != 0)
@@ -463,7 +451,7 @@ namespace NVIDIA.Flex
                     //if ((oneTimeRel) && relGrasp)
                     //{
                     List<Grabber> auxList = grabberList.FindAll(a => a.isReleasing());
-                    Debug.Log("Release");
+                    // Debug.Log("Release");
                     foreach (Grabber g in auxList){
                         foreach (int idPart in g.getDetectedParticles())
                         {
