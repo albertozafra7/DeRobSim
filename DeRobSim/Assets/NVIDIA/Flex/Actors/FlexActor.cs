@@ -86,16 +86,19 @@ namespace NVIDIA.Flex
             get { return m_instanceHandle; }
         }
 
+        // Indices of the particles within the container
         public int[] indices
         {
             get { return m_indices; }
         }
 
+        // Number of particles within the deformable object
         public int indexCount
         {
             get { return m_indexCount; }
         }
 
+        // Returns the bounding box of the deformable object
         public Bounds bounds { get { return m_bounds; } }
 
         #endregion
@@ -135,6 +138,7 @@ namespace NVIDIA.Flex
             if (onAfterRecreate != null) onAfterRecreate();
         }
 
+        // This changes the particle to a desired position without taking into account any physic
         public void Teleport(Vector3 _targetPosition, Quaternion _targetRotation)
         {
             m_teleportPosition = _targetPosition;
@@ -142,6 +146,7 @@ namespace NVIDIA.Flex
             m_teleport = 5;
         }
 
+        // This creates an automatic movement within the particle, similarly to an internal velocity
         public void ApplyImpulse(Vector3 _impulse, int _particle = -1)
         {
             ImpulseInfo info;
@@ -150,23 +155,33 @@ namespace NVIDIA.Flex
             m_impulses.Add(info);
         }
         
+        // Add grabber object to the FlexActor for managing the particle grabbing
         public void addGrabber(Grabber grabber){
             // If the object is not null and is not already within our class
-            //Debug.Log("The grabber " + grabber.getGrabber().name + " has been added");
-            if(grabber != null && grabberList.Find(a => a.getGrabber().name == grabber.getGrabber().name) == null)
+            if(grabber != null && grabberList.Find(a => a.getGrabber().name == grabber.getGrabber().name) == null){
                 grabberList.Add(grabber);
-            
-            // particle_start_id = indices[0];
-            // particle_num = indices.Length;
+
+                // We add the particles offset field to the list
+                particlesOffset.Add(new Dictionary<int,Vector3>());
+            }
         }
 
         public void removeGrabber(Grabber grabber){
-            if(grabber != null)
+            if(grabber != null){
+                // Remove the particles Offset
+                if(grabberList.IndexOf(grabber) != -1){
+                    int id_grabber = grabberList.IndexOf(grabber);
+                    particlesOffset[id_grabber].Clear();
+                    particlesOffset.RemoveAt(id_grabber);
+                }
+
                 grabberList.Remove(grabber);
+            }
         }
 
         public void resetGrabberList(){
             grabberList.Clear();
+            particlesOffset.Clear();
         }
 
         public FlexContainer GetContainer(){
@@ -271,6 +286,7 @@ namespace NVIDIA.Flex
             }
         }
 
+        // This creates the particles within the deformable object
         protected virtual void CreateInstance()
         {
             if (m_currentContainer && m_currentContainer.handle && m_currentAsset && m_currentAsset.handle)
@@ -325,16 +341,12 @@ namespace NVIDIA.Flex
             m_massScale = Mathf.Max(m_massScale, 0.01f);
         }
         //---------------------------------------------------
+        // Finds the closest particle to a custom position
         private float[] FindNextTo(Vector4[] allParticles, Vector3 pos)
         {
             float helpDistMin = 1000;
             float indicesMin = -1;
             float[] ret = new float[2];
-            // Vector3[] vec3 = new Vector3[allParticles.Length];
-            // for (int i = 0; i < allParticles.Length; i++)
-            // {
-            //     vec3[i] = allParticles[i];
-            // }
             for (int i = 0; i < allParticles.Length; i++)
             {
                 if (Vector3.Distance(pos, allParticles[i]) < helpDistMin)
@@ -348,6 +360,7 @@ namespace NVIDIA.Flex
             ret[0] = indicesMin;
             ret[1] = helpDistMin;
 
+            // Returns the index of the closest particle and the distance to that particle
             return ret;
         }
 
@@ -367,10 +380,10 @@ namespace NVIDIA.Flex
 
         }
 
-        // 10000
+        // Contains all the particles of the deformable object (its size is intially arbitrary and later the array is resized based on the number of particles of the deformable object)
         Vector4[] allParticles = new Vector4[10000];
 
-        // Custom Grabber
+        // List that contains the Grabber objects that can pick up the particles
         List<Grabber> grabberList = new List<Grabber>();
 
         int idNextPart;
@@ -378,127 +391,103 @@ namespace NVIDIA.Flex
         int particle_start_id = 0;  // Starting particle id of the actor within the container
         int particle_num = 0;    // Ending particle id of the actor within the container
 
-        private bool setRestPos = true;
-        Vector4[] particlesInitPos = new Vector4[10000];
-        public static bool resFatPos = false;
+        List<Dictionary<int,Vector3>> particlesOffset = new List<Dictionary<int,Vector3>>();
         protected virtual void OnFlexUpdate(FlexContainer.ParticleData _particleData)
         {
-            //Debug.LogError("Start? " + m_indices[m_indices.Length - 1]);
-            UpdateDrawParticles();
-            //Debug.LogError("End " + particle_num);
-
-            if (setRestPos)
-            {
-                _particleData.GetParticles(particle_start_id,particle_num,particlesInitPos);
-                // _particleData.GetParticles(0,particle_num,particlesInitPos);
-                setRestPos = false;
-            }
-            
-            // if (m_currentAsset.name == "Fat_FlexSoftAsset")
-            // {
-                if (resFatPos)
-                {
-                    _particleData.SetParticles(particle_start_id,particle_num,particlesInitPos);
-                    // _particleData.SetParticles(0,particle_num,particlesInitPos);
-                    resFatPos = false;
-                }
-                
+            UpdateDrawParticles();           
                 
 
-                //pick all particles
-                _particleData.GetParticles(particle_start_id,particle_num, allParticles);
-                // _particleData.GetParticles(0,particle_num, allParticles);
+            // Make a copy of the particles into the allParticles array
+            _particleData.GetParticles(particle_start_id,particle_num, allParticles);
 
-                //if grab move particle in cube position
-                if(grabberList.Exists(a => a.isGrabbing() == true)){
-                    List<Grabber> auxList = grabberList.FindAll(a => a.getActiveGrab());
-                    // Debug.Log("ActiveGrab");
-                    foreach(Grabber g in auxList){
-                        foreach (int idPart in g.getDetectedParticles())
-                            {
-                                // Debug.LogError("Picked particle at " + idPart + "");
-                                _particleData.SetParticle(particle_start_id + idPart, new Vector4(g.getGrabberpos().x, g.getGrabberpos().y, g.getGrabberpos().z, 0));
-                            }
-                    }
-                }
-                
+            // +++++++++ Active Grab +++++++++ 
+            // If the grabber is set on grabbing, which means that it has already detected some particles
+            if(grabberList.Exists(a => a.isGrabbing() == true)){
+                List<Grabber> auxList = grabberList.FindAll(a => a.getActiveGrab());    // We get the grabbers of the list that are grabbing
 
-                //check if trigger is active and there is a particle next
-                if(grabberList.Exists(a => a.isOnDetecting() == true)){
-                    List<Grabber> auxList = grabberList.FindAll(a => a.isOnDetecting());
-                    // Debug.Log("OneTimePick");
-                    foreach(Grabber g in auxList){
-                        // Debug.Log("Closest particle at " + g.GetDistanceToClosestParticle(allParticles));
-                        if (g.GetDistanceToClosestParticle(allParticles) <= g.getDetectionRadius()) { // Maybe change for a method within the class
-                            //particlesUnderRadius = FindParticleInRadius(allParticles, grabber_.transform.position, 0.06f);
-                            g.DetectParticles(allParticles);
-                            // Debug.Log("Detected Particles Count " + g.getDetectedParticlesCount());
-                            if(g.getDetectedParticlesCount() > 0)
-                                g.setOnGrabbing();
-                            // if (g.getDetectedParticlesCount() != 0)
-                            // {
-
-                            //     oneTimePick = false;
-                            //     oneTimeRel = true;
-                            //     activeGrab = true;
-                            // }
-                        }
-                    }
-                }
-                    
-                if(grabberList.Exists(a => a.isReleasing() == true)){
-                    //release particle ( W component = 1 reactivate gravity)
-                    //if ((oneTimeRel) && relGrasp)
-                    //{
-                    List<Grabber> auxList = grabberList.FindAll(a => a.isReleasing());
-                    // Debug.Log("Release");
-                    foreach (Grabber g in auxList){
-                        foreach (int idPart in g.getDetectedParticles())
+                foreach(Grabber g in auxList){
+                    // We get the id of the grabber on the list for mapping it within the particlesOffset's list
+                    int id_grabber = grabberList.IndexOf(g);
+                    // We get the previously detected particles 
+                    foreach (int idPart in g.getDetectedParticles())
                         {
-                            _particleData.SetParticle(particle_start_id + idPart, new Vector4(g.getGrabberpos().x, g.getGrabberpos().y, g.getGrabberpos().z, 1));
+                            // We update the position of the grabbed particles based on the grabber position + the initial offset
+                            _particleData.SetParticle(particle_start_id + idPart, new Vector4(g.getGrabberpos().x + particlesOffset[id_grabber][idPart].x, g.getGrabberpos().y + particlesOffset[id_grabber][idPart].y, g.getGrabberpos().z + particlesOffset[id_grabber][idPart].z, 0));
                         }
-                        g.DetectParticles(allParticles);
+                }
+            }
 
-                        if(g.getDetectedParticlesCount() == 0)
-                            g.setOnReleased();
+            // +++++++++ Detecting +++++++++ 
+            // Check the particles that are under the detection radius of the grabbers that are OnDetecting
+            if(grabberList.Exists(a => a.isOnDetecting() == true)){
+                List<Grabber> auxList = grabberList.FindAll(a => a.isOnDetecting());
+                // Debug.Log("OneTimePick");
+                foreach(Grabber g in auxList){
+                    // Just for optimizing we ensure that the closest particle is under the detection radius
+                    if (g.GetDistanceToClosestParticle(allParticles) <= g.getDetectionRadius()) {
+                        // If the closest particles is under the detection radius we detect the particles that are close to the grabber
+                        g.DetectParticles(allParticles);
+                        // If some particles have been detected we set the grabber OnGrabbing
+                        if(g.getDetectedParticlesCount() > 0){
+                            g.setOnGrabbing();
+
+                            // We get the id of the grabber on the list for mapping it within the particlesOffset's list
+                            int id_grabber = grabberList.IndexOf(g);
+
+                            // We store the detected particles' offset to the dictionary
+                            foreach (int idPart in g.getDetectedParticles())
+                            {
+                                Vector3 particle_pos = allParticles[idPart];
+                                particlesOffset[id_grabber].Add(idPart,(particle_pos-g.getGrabberpos()));
+                            }
+                        }
+                    }
+                }
+            }
+                
+            // +++++++++ Releasing +++++++++ 
+            // We just release the particles reactivating its gravity (W component = 1 --> reactivate gravity) and set OnReleased the grabber
+            if(grabberList.Exists(a => a.isReleasing() == true)){
+                List<Grabber> auxList = grabberList.FindAll(a => a.isReleasing());
+                foreach (Grabber g in auxList){
+                    foreach (int idPart in g.getDetectedParticles())
+                    {
+                        // For each previously grabbed particle we just keep its position and reactivate the gravity
+                        _particleData.SetParticle(particle_start_id + idPart, new Vector4(allParticles[idPart].x , allParticles[idPart].y, allParticles[idPart].z, 1.0F));
                     }
 
-                    //}  
+                    // Once we have released the particles we set the grabber on released and remove it from the actor list
+                    g.setOnReleased();
+                    g.removeGrabbersFromActors();
                 }
+            }
 
-              
-
-                if (transform.hasChanged && Application.isPlaying)
-                {
-                    MoveFixedParticles(_particleData);
-                    //if (Application.isPlaying) MoveFixedParticles(_particleData);
-                    //else { m_recreateActor = 1; Recreate(); }
-                    transform.hasChanged = false;
-                }
-            //}
-            /*
+            
+            // Standard movement of the particles
             if (transform.hasChanged && Application.isPlaying)
             {
                 MoveFixedParticles(_particleData);
-                //if (Application.isPlaying) MoveFixedParticles(_particleData);
-                //else { m_recreateActor = 1; Recreate(); }
                 transform.hasChanged = false;
             }
-            */
+
+            // Teleportation
             if (m_teleport > 0)
             {
                 TeleportParticles(_particleData);
                 --m_teleport;
             }
 
+            // Impulse
             if (m_impulses.Count > 0)
             {
                 ApplyImpulses(_particleData);
                 m_impulses.Clear();
             }
 
+            // Update of the bounding box of the deformable object based on the particles position
             UpdateBounds(_particleData);
 
+            // We call again the method for generating an infinite loop
             if (onFlexUpdate != null) onFlexUpdate(_particleData);
         }
 
@@ -524,8 +513,6 @@ namespace NVIDIA.Flex
 
             if(allParticles.Length < particle_num)
                 System.Array.Resize(ref allParticles, particle_num);
-            if(particlesInitPos.Length < particle_num)
-                System.Array.Resize(ref particlesInitPos, particle_num);
         }
 
         void DestroyActor()

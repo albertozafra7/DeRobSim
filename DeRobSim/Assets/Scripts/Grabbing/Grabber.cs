@@ -92,10 +92,14 @@ public class Grabber : MonoBehaviour {
     }
 
     public void release(){
-        if(isReleasing()){
-            setOnReleased();
-        } else if(!isReleased()) {
-            setOnReleasing();
+        // Commented because its update is so fast that gives no time for updating the FlexActor
+        // if(isReleasing()){
+        //     Debug.Log("###G --> Release");
+        //     setOnReleased();
+        //     removeGrabbersFromActors();
+        // }
+        if(!isReleased()){
+            setOnReleasing();   // This lets the FlexActor handle the releasing
         }
     }
 
@@ -230,7 +234,7 @@ public class Grabber : MonoBehaviour {
         }
     }
 
-    private void removeGrabbersFromActors(){
+    public void removeGrabbersFromActors(){
         foreach (FlexActor actor in actorList){
             actor.removeGrabber(this);
         }
