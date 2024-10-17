@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.44657898, g: 0.4964133, b: 0.5748178, a: 1}
+  m_IndirectSpecularColor: {r: 0.44657892, g: 0.4964128, b: 0.5748173, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -137,7 +137,6 @@ GameObject:
   - component: {fileID: 83664022}
   - component: {fileID: 83664021}
   - component: {fileID: 83664020}
-  - component: {fileID: 83664019}
   m_Layer: 0
   m_Name: Grabber_1
   m_TagString: Untagged
@@ -145,21 +144,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &83664019
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 83664018}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 822893d76b7e6ae40bba76fb330b610f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  grabber: {fileID: 83664021}
-  actor: {fileID: 102949981}
-  grabbed: 0
 --- !u!114 &83664020
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -182,7 +166,6 @@ MonoBehaviour:
   currentAngVel: {x: 0, y: 0, z: 0}
   currentAccel: {x: 0, y: 0, z: 0}
   currentAngAccel: {x: 0, y: 0, z: 0}
-  grabber_act: {fileID: 83664019}
 --- !u!114 &83664021
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -196,6 +179,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   detectionRadius: 0.25
+  drawRadius: 0
+  actorList: []
 --- !u!135 &83664022
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -282,17 +267,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &102949981 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 1176690457074510476, guid: 59f3c12799246fc4ea4aecb43cf42f5b, type: 3}
-  m_PrefabInstance: {fileID: 2443965894247477056}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 793e0ae62b98fe542a8bc346e24e3dab, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &154086901
 GameObject:
   m_ObjectHideFlags: 0
@@ -392,28 +366,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 264866832707414627, guid: 28bd2e2b4fa406d4b8b011deefcf8940, type: 3}
   m_PrefabInstance: {fileID: 2568813580070433084}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &723589708 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 5539550032188612691, guid: 28bd2e2b4fa406d4b8b011deefcf8940, type: 3}
-  m_PrefabInstance: {fileID: 2568813580070433084}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 793e0ae62b98fe542a8bc346e24e3dab, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!114 &728729961 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 1534033193611674187, guid: 7f29a91af9371f849bb3ed8323fb6fe5, type: 3}
-  m_PrefabInstance: {fileID: 5472700111809013547}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 793e0ae62b98fe542a8bc346e24e3dab, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &773933200
 GameObject:
   m_ObjectHideFlags: 0
@@ -428,7 +380,6 @@ GameObject:
   - component: {fileID: 773933204}
   - component: {fileID: 773933203}
   - component: {fileID: 773933202}
-  - component: {fileID: 773933201}
   m_Layer: 0
   m_Name: Grabber_2
   m_TagString: Untagged
@@ -436,21 +387,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &773933201
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 773933200}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 822893d76b7e6ae40bba76fb330b610f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  grabber: {fileID: 773933203}
-  actor: {fileID: 723589708}
-  grabbed: 0
 --- !u!114 &773933202
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -473,7 +409,6 @@ MonoBehaviour:
   currentAngVel: {x: 0, y: 0, z: 0}
   currentAccel: {x: 0, y: 0, z: 0}
   currentAngAccel: {x: 0, y: 0, z: 0}
-  grabber_act: {fileID: 773933201}
 --- !u!114 &773933203
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -487,6 +422,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   detectionRadius: 0.25
+  drawRadius: 0
+  actorList: []
 --- !u!135 &773933204
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -679,17 +616,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &930692773 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 5667321565419331963, guid: 4aacf95f5c6676341aeb16c077859982, type: 3}
-  m_PrefabInstance: {fileID: 6717288325253268837}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 793e0ae62b98fe542a8bc346e24e3dab, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &1334654367
 GameObject:
   m_ObjectHideFlags: 0
@@ -967,7 +893,6 @@ GameObject:
   - component: {fileID: 1452932046}
   - component: {fileID: 1452932045}
   - component: {fileID: 1452932044}
-  - component: {fileID: 1452932043}
   m_Layer: 0
   m_Name: Grabber_4
   m_TagString: Untagged
@@ -975,21 +900,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1452932043
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1452932042}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 822893d76b7e6ae40bba76fb330b610f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  grabber: {fileID: 1452932045}
-  actor: {fileID: 930692773}
-  grabbed: 0
 --- !u!114 &1452932044
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1012,7 +922,6 @@ MonoBehaviour:
   currentAngVel: {x: 0, y: 0, z: 0}
   currentAccel: {x: 0, y: 0, z: 0}
   currentAngAccel: {x: 0, y: 0, z: 0}
-  grabber_act: {fileID: 1452932043}
 --- !u!114 &1452932045
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1026,6 +935,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   detectionRadius: 0.25
+  drawRadius: 0
+  actorList: []
 --- !u!135 &1452932046
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -1473,7 +1384,6 @@ GameObject:
   - component: {fileID: 1696231601}
   - component: {fileID: 1696231600}
   - component: {fileID: 1696231599}
-  - component: {fileID: 1696231598}
   m_Layer: 0
   m_Name: Grabber_3
   m_TagString: Untagged
@@ -1481,21 +1391,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1696231598
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1696231597}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 822893d76b7e6ae40bba76fb330b610f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  grabber: {fileID: 1696231600}
-  actor: {fileID: 728729961}
-  grabbed: 0
 --- !u!114 &1696231599
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1518,7 +1413,6 @@ MonoBehaviour:
   currentAngVel: {x: 0, y: 0, z: 0}
   currentAccel: {x: 0, y: 0, z: 0}
   currentAngAccel: {x: 0, y: 0, z: 0}
-  grabber_act: {fileID: 1696231598}
 --- !u!114 &1696231600
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1532,6 +1426,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   detectionRadius: 0.25
+  drawRadius: 0
+  actorList: []
 --- !u!135 &1696231601
 SphereCollider:
   m_ObjectHideFlags: 0
