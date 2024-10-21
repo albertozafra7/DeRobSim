@@ -161,7 +161,12 @@ function [ single_accel ] = SingleTransportationControl2D(robot_id, positions, d
 
     U_H = k1H * (H * Pdb - Pb) + k2H * (Hdot * Pdb - Pbdot);                    % eq. 8
 
-    U_G = k1G * (Pb * Pdbp * Pdb - Pb) + k2G * (Pbdot * Pdbp * Pdb - Pbdot);    % eq. 9
+    % As Matlab has a lot of precision we decided to round up the results
+    % for ensuring that a value close to 0 is 0
+    k1G_multiplier = (Pb * Pdbp * Pdb - Pb);
+    k1G_multiplier(k1G_multiplier < 10e-5) = 0;
+
+    U_G = k1G * k1G_multiplier + k2G * (Pbdot * Pdbp * Pdb - Pbdot);            % eq. 9
     
     U_gamma = alpha_H * U_H + alpha_G * U_G;                                    % eq. 10
 

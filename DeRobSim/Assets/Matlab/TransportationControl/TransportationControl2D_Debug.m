@@ -197,11 +197,6 @@ function [ a, U_f, U_D, U_g, U_th, U_gamma, U_s, U_H, U_G, positions, destinatio
         end
     end
 
-    % f=100;
-    % % f=1/20; %frequency [Hz]
-    % amplitude = 10;    %amplitude [V]
-    % a = [0 0 0 0;1 1 1 1] .* amplitude .* sin(2*pi*f*k1H);
-
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
 
