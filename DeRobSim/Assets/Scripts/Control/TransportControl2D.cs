@@ -21,9 +21,6 @@ public class TransportControl2D : MonoBehaviour
     public List<Transform> agentDest = new List<Transform>();       // Destination pose of the agents
 
     //+++ Control params +++
-    // Control accuracy
-    [Header("Destination Error Threshold")]
-    public float dest_threshold = 0.25f;
 
     // Delta Time
     [Header("Delta Time")]
@@ -119,11 +116,6 @@ public class TransportControl2D : MonoBehaviour
         // We draw the destiny if it has not been drawn
         if(draw_destiny)
             DrawDestination();
-
-        // ------- Destination Evaluation -------
-        // If the agents are not close enough we continue with the control, otherwise, we stop the control
-        if(start_control && isCloseEnough(dest_threshold))
-            start_control = false;
 
         // ------- Agent Grab -------
         if(start_control && !agentsGrabbed)
