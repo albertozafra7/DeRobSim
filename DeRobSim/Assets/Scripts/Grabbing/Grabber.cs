@@ -255,6 +255,12 @@ public class Grabber : MonoBehaviour {
 
     }
 
+    private void Update(){
+        if(grabberCollider.radius != detectionRadius){
+            grabberCollider.radius = detectionRadius;
+        }
+    }
+
     // +++++++++++ Drawing +++++++++++
     private void OnDrawGizmosSelected()
     {
