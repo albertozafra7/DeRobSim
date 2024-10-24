@@ -7,7 +7,8 @@ using Unity.Mathematics;
 // Matlab Libraries
 using MathWorks.MATLAB.NET.Arrays; // import from MWArray.dll
 using MatlabControlLib;            // import the custom control Matlab Library
-
+// For debugging
+using NVIDIA.Flex;
 
 public class TransportControl3D : MonoBehaviour
 {
@@ -20,9 +21,6 @@ public class TransportControl3D : MonoBehaviour
     public List<Transform> agentDest = new List<Transform>();       // Destination pose of the agents
 
     //+++ Control params +++
-    // Control accuracy
-    [Header("Destination Error Threshold")]
-    public float dest_threshold = 0.25f;
 
     // Delta Time
     [Header("Delta Time")]
@@ -30,16 +28,11 @@ public class TransportControl3D : MonoBehaviour
 
     // Control gains
     [Header("Control Gains")]
-    public float[] kh = new float[2] {6.0f,3.0f};                   // Deformation Gain
-    public float[] kg = new float[2] {3.0f,2.0f};                   // Deformation Correction Gain 
-    public float[] ks = new float[2] {5.0f,6.0f};                   // Scale control Gain
-    public float[] kgm = new float[2] {2.0f,6.0f};                  // Position Gain
-    public float[] kth = new float[2] {4.0f,4.0f};                  // Orientation Gain
-
-    // Control weights
-    [Header("Control Weights")]
-    public float alpha_H = 4.0f;                                    // Deformation Control Weight
-    public float alpha_G = 2.0f;                                    // Correction Weight
+    public float kh = 1.0f;                   // Deformation Gain
+    public float kg = 2.0f;                   // Deformation Correction Gain 
+    public float ks = 0.5f;                   // Scale control Gain
+    public float kgm = 0.5f;                  // Position Gain
+    public float kth = 0.8f;                  // Orientation Gain
 
     [Header("Destination Modifiers")]
     public float dest_scale = 1.0f;                                 // It scales up or down the destination shape
@@ -47,23 +40,28 @@ public class TransportControl3D : MonoBehaviour
 
     // Control Initialization
     [Header("Control Initialization")]
-    public bool start_control = false;
+    public bool start_control = false;                              // Boolean used for starting the control
 
     // Debug variables
     [Header("Debug")]
     public bool draw_destiny = true;                                // Boolean used for drawing the destination of the object
     public bool log_simulation = false;                             // Boolean used for saving the control parameters
-    
+    public string log_fileName = "TransportControl3D_log";       // Filename used for the log file
+    public string log_filePath = "SimulationLogs";                  // Filepath used for the log file
+
+    public float saveInterval = 0.25F;
 
     //--------- Private ---------
     private int n_agents;
     private float2x2 Rot90M = new float2x2(0.0f, -1.0f, 1.0f, 0.0f); // 90 deg rotation matrix to be used in the control
     private List<Agent.pose> agentPrevPose = new List<Agent.pose>(); // Previous agent pose
     private MatlabControlLib.MatlabControlLib controllerLib = new MatlabControlLib.MatlabControlLib();  // Object that uses the Matlab Library for the control algorithm
-    private Vector3[] agentAccel;
+    private Vector3[] agentVel;
     private bool agentsGrabbed = false;
     private bool agentsActivated = true;
     private float currPose_error = float.PositiveInfinity; // Determine the system current error
+    private DebugLogger simLogger;  // Object used for logging the simulation
+    private int n_matlabParams = 15; // Number of outputs received from matlab when debugging
 
     #endregion Properties
 
@@ -78,6 +76,7 @@ public class TransportControl3D : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        // Prepare the control
         n_agents = listAgents.Count;
 
         for(int i = 0; i < n_agents; ++i){
@@ -87,13 +86,19 @@ public class TransportControl3D : MonoBehaviour
             listAgents[i].set_dt(dt);
         }
 
+        // Drawing
         if(draw_destiny)
             DrawDestination();
 
-        agentAccel = new Vector3[n_agents];
+        // Resize of the agents acceleration
+        agentVel = new Vector3[n_agents];
 
+        // Agent activation for using them
         ActivateAgents();
 
+        // Debug log
+        if(simLogger != null)
+            PrepareDebugLogger();
     }
 
     // Update is called once per frame
@@ -104,11 +109,6 @@ public class TransportControl3D : MonoBehaviour
         if(draw_destiny)
             DrawDestination();
 
-        // ------- Destination Evaluation -------
-        // If the agents are not close enough we continue with the control, otherwise, we stop the control
-        if(start_control && isCloseEnough(dest_threshold))
-            start_control = false;
-
         // ------- Agent Grab -------
         if(start_control && !agentsGrabbed)
             AllAgentsGrab();
@@ -117,23 +117,38 @@ public class TransportControl3D : MonoBehaviour
         if(start_control){
             if(!agentsActivated)
                 ActivateAgents();
+
             // We call the main control algorithm
-            // Debug.LogWarning("AGENT POSE:" + Transform2Positions(agentPose));
-            // Debug.LogWarning("AGENT DEST:" + Transform2Positions(agentDest));
-            // Debug.LogWarning("AGENT PREV POSE:" + AgentPose2Positions(agentPrevPose));
-            MWNumericArray accelerations = (MWNumericArray)controllerLib.TransportationControl2D(1,Transform2Positions(agentPose),Transform2Positions(agentDest),AgentPose2Positions(agentPrevPose),kh[0],kh[1],kg[0],kg[1],ks[0],ks[1],kgm[0],kgm[1],kth[0],kth[1],alpha_H,alpha_G,dt,dest_scale,dest_rotation).GetValue(0);
-            // Debug.LogWarning("CONTROL::" + accelerations);
+            MWNumericArray velocities;
             
-            // We convert the output to a Vector3 to use it as accelerations within the agents
-            MWNumericArray2Vector3(accelerations);
+            if(log_simulation){ // If we want to log the simulation
+                // We get the whole list of results
+                MWArray[] control_results = controllerLib.TransportationControl3D_Debug(n_matlabParams,Transform2Positions(agentPose),Transform2Positions(agentDest),kh,kg,ks,kgm,kth,dest_scale,dest_rotation);
 
-            // We update the previous agentPose
-            for(int i = 0; i < n_agents; ++i)
-                // Store the initial poses
-                agentPrevPose[i] = new Agent.pose(agentPose[i].position,agentPose[i].rotation);
+                // First we filter from the control results the velocities that are going to be sent to the agents
+                velocities = (MWNumericArray)control_results.GetValue(0);
 
-            // We send the accelerations to the agents
-            SendAccels();
+                // If we do not have any debugLogger created we create it
+                if(simLogger == null){
+                    simLogger = gameObject.AddComponent<DebugLogger>();
+                    PrepareDebugLogger();
+                }
+
+                // We update the Dictionary with the matlab params
+                UpdateMatlabParams(control_results);
+
+                // We save the logs on the file
+                simLogger.saveData();
+                
+
+            } else // Else we only retrieve the velocities
+                velocities = (MWNumericArray)controllerLib.TransportationControl3D(1,Transform2Positions(agentPose),Transform2Positions(agentDest),kh,kg,ks,kgm,kth,dest_scale,dest_rotation).GetValue(0);
+            
+            // We convert the output to a Vector3 to use it as velocities within the agents
+            MWNumericArray2Vels(velocities);
+
+            // We send the velocities to the agents
+            SendVels();
 
         }
 
@@ -151,36 +166,51 @@ public class TransportControl3D : MonoBehaviour
 
     // ------- Setting Up the Controller -------
     MWNumericArray Transform2Positions(List<Transform> Transformations){
-        float[,] positions = new float[2,n_agents];
+        float[,] positions = new float[3,n_agents];
 
         for(int i = 0; i < n_agents; ++i){
             positions[0,i] = Transformations[i].position.x;
-            positions[1,i] = Transformations[i].position.z;
-            //positions[1,i] = Transformations[i].position.y;
-            //positions[2,i] = Transformations[i].position.z;
+            positions[1,i] = Transformations[i].position.y;
+            positions[2,i] = Transformations[i].position.z;
         }
 
         return new MWNumericArray(positions);
     }
 
     MWNumericArray AgentPose2Positions(List<Agent.pose> Poses){
-        float[,] positions = new float[2,n_agents];
+        float[,] positions = new float[3,n_agents];
 
         for(int i = 0; i < n_agents; ++i){
             positions[0,i] = Poses[i].position.x;
-            positions[1,i] = Poses[i].position.z;
-            //positions[1,i] = Poses[i].position.y;
-            //positions[2,i] = Poses[i].position.z;
+            positions[1,i] = Poses[i].position.y;
+            positions[2,i] = Poses[i].position.z;
         }
 
         return new MWNumericArray(positions);
     }
 
     // ------- Controller output Handle -------
-    private void MWNumericArray2Vector3(MWNumericArray accelerations){
-        double[,] accels = (double[,])accelerations.ToArray(MWArrayComponent.Real);
+    private void MWNumericArray2Vels(MWNumericArray velocities){
+        double[,] vels = (double[,])velocities.ToArray(MWArrayComponent.Real);
         for(int i = 0; i < n_agents; ++i)
-            agentAccel[i] = new Vector3((float)accels[0,i], 0.0f, (float)accels[1,i]);
+            agentVel[i] = new Vector3((float)vels[0,i], (float)vels[1,i], (float)vels[2,i]);
+    }
+
+    private double[,] MWNumericArray2UnityArray(MWNumericArray matlabArray){
+        return (double[,])matlabArray.ToArray(MWArrayComponent.Real);
+    }
+
+    private Vector3[] MWNumericArray2Vector3(MWNumericArray matlabArray){
+        double[,] array = (double[,])matlabArray.ToArray(MWArrayComponent.Real);
+        Vector3[] vector3s = new Vector3[array.GetLength(1)];
+        for(int i = 0; i < array.GetLength(1); ++i)
+            vector3s[i] = new Vector3((float)array[0,i],  (float)array[1,i], (float)array[2,i]);
+        
+        return vector3s;
+    }
+
+    private double MWNumericArray2DoubleScalar(MWNumericArray matlabArray){
+        return matlabArray.ToScalarDouble();
     }
 
     // ------- Agents -------
@@ -198,9 +228,9 @@ public class TransportControl3D : MonoBehaviour
         agentsGrabbed = false;
     }
 
-    private void SendAccels(){
+    private void SendVels(){
         for(int i = 0; i < n_agents; ++i)
-            listAgents[i].set_accel(agentAccel[i]);
+            listAgents[i].set_vel(agentVel[i]);
     }
 
     private void StopAgents(){
@@ -246,6 +276,98 @@ public class TransportControl3D : MonoBehaviour
                 Debug.DrawLine(agentDest[i].position, agentDest[i+1].position,Color.blue);
         }
     }
+
+    // ------- Debug -------
+    private void PrepareDebugLogger(){
+        // We prepare the debug logger
+        // We set the filepath
+        simLogger.fileName = log_fileName + "_" +DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".h5";
+        simLogger.filePath = log_filePath;
+
+        // We set the saveInterval
+        simLogger.updateSaveInterval = saveInterval;
+
+        // We intialize the debug logger
+        simLogger.InitializeData();
+
+        // We set the agents
+        simLogger.registeredAgents = listAgents;
+        // We set the agent destinations
+        simLogger.registeredTransforms = agentDest;
+        // We set the flexObjects
+        simLogger.registeredFlexObjects = new List<FlexActor>(FindObjectsOfType<FlexActor>());
+
+        // We add the dictionary with all the params
+        
+        // - accel
+        simLogger.registeredMatlabParams.Add("velocity", null);
+        // - U_f
+        simLogger.registeredMatlabParams.Add("U_f", null);
+        // - U_H
+        simLogger.registeredMatlabParams.Add("U_H", null);
+        // - U_G
+        simLogger.registeredMatlabParams.Add("U_G", null);
+        // - U_s
+        simLogger.registeredMatlabParams.Add("U_s", null);
+        // - U_c
+        simLogger.registeredMatlabParams.Add("U_c", null);
+        // - U_Hd
+        simLogger.registeredMatlabParams.Add("U_Hd", null);
+        // - Positions
+        simLogger.registeredMatlabParams.Add("positions", null);
+        // - Destinations
+        simLogger.registeredMatlabParams.Add("destinations", null);
+        // +++++++ ERRORS +++++++
+        // - gamma_H
+        simLogger.registeredMatlabScalars.Add("gamma_H", Double.NaN);
+        // - gamma_G
+        simLogger.registeredMatlabScalars.Add("gamma_G", Double.NaN);
+        // - eg
+        simLogger.registeredMatlabScalars.Add("eg", Double.NaN);
+        // - es
+        simLogger.registeredMatlabScalars.Add("es", Double.NaN);
+        // - eth
+        simLogger.registeredMatlabScalars.Add("eth", Double.NaN);
+        // - eth_individual
+        simLogger.registeredMatlabParams.Add("eth_individual", null);
+
+    }
+
+    private void UpdateMatlabParams(MWArray[] matlabParams){
+        // - accel
+        simLogger.registeredMatlabParams["velocity"] = MWNumericArray2Vector3((MWNumericArray)matlabParams.GetValue(0));
+        // - U_f
+        simLogger.registeredMatlabParams["U_f"] = MWNumericArray2Vector3((MWNumericArray)matlabParams.GetValue(1));
+        // - U_H
+        simLogger.registeredMatlabParams["U_H"] = MWNumericArray2Vector3((MWNumericArray)matlabParams.GetValue(2));
+        // - U_G
+        simLogger.registeredMatlabParams["U_G"] = MWNumericArray2Vector3((MWNumericArray)matlabParams.GetValue(3));
+        // - U_s
+        simLogger.registeredMatlabParams["U_s"] = MWNumericArray2Vector3((MWNumericArray)matlabParams.GetValue(4));
+        // - U_c
+        simLogger.registeredMatlabParams["U_c"] = MWNumericArray2Vector3((MWNumericArray)matlabParams.GetValue(5));
+        // - U_Hd
+        simLogger.registeredMatlabParams["U_Hd"] = MWNumericArray2Vector3((MWNumericArray)matlabParams.GetValue(6));
+        // - Positions
+        simLogger.registeredMatlabParams["positions"] = MWNumericArray2Vector3((MWNumericArray)matlabParams.GetValue(7));
+        // - Destinations
+        simLogger.registeredMatlabParams["destinations"] = MWNumericArray2Vector3((MWNumericArray)matlabParams.GetValue(8));
+        // +++++++ ERRORS +++++++
+        // - gamma_H
+        simLogger.registeredMatlabScalars["gamma_H"] = MWNumericArray2DoubleScalar((MWNumericArray)matlabParams.GetValue(9));
+        // - gamma_G
+        simLogger.registeredMatlabScalars["gamma_G"] = MWNumericArray2DoubleScalar((MWNumericArray)matlabParams.GetValue(10));
+        // - eg
+        simLogger.registeredMatlabScalars["eg"] = MWNumericArray2DoubleScalar((MWNumericArray)matlabParams.GetValue(11));
+        // - es
+        simLogger.registeredMatlabScalars["es"] = MWNumericArray2DoubleScalar((MWNumericArray)matlabParams.GetValue(12));
+        // - eth
+        simLogger.registeredMatlabScalars["eth"] = MWNumericArray2DoubleScalar((MWNumericArray)matlabParams.GetValue(13));        
+        // - eth_individual
+        simLogger.registeredMatlabParams["eth_individual"] = MWNumericArray2Vector3((MWNumericArray)matlabParams.GetValue(14));    
+
+    }
+
 
     #endregion Custom methods
 }

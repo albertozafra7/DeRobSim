@@ -67,9 +67,6 @@ public class TransportControl2D : MonoBehaviour
     private float currPose_error = float.PositiveInfinity; // Determine the system current error
     private DebugLogger simLogger;  // Object used for logging the simulation
     private int n_matlabParams = 16; // Number of outputs received from matlab when debugging
-    
-    // ----------- TRIALS -----------
-    private int t = 0;
 
     #endregion Properties
 
@@ -133,8 +130,6 @@ public class TransportControl2D : MonoBehaviour
                 // We get the whole list of results
                 // MWArray[] control_results = controllerLib.TransportationControl2D_Debug(n_matlabParams,Transform2Positions(agentPose),Transform2Positions(agentDest),AgentPose2Positions(agentPrevPose),kh[0],kh[1],kg[0],kg[1],ks[0],ks[1],kgm[0],kgm[1],kth[0],kth[1],alpha_H,alpha_G,dt,dest_scale,dest_rotation);
                 MWArray[] control_results = controllerLib.TransportationControl2D_Debug(n_matlabParams,Transform2Positions(agentPose),Transform2Positions(agentDest),AgentPose2Positions(agentPrevPose),Time.realtimeSinceStartup,kh[1],kg[0],kg[1],ks[0],ks[1],kgm[0],kgm[1],kth[0],kth[1],alpha_H,alpha_G,dt,dest_scale,dest_rotation);
-
-                t++;
 
                 // First we filter from the control results the accelerations that are going to be sent to the agents
                 accelerations = (MWNumericArray)control_results.GetValue(0);
