@@ -182,18 +182,25 @@ public class DebugLogger : MonoBehaviour
             H5Group DeformableObjectGroup = (H5Group)timestampGroup["DeformableObjects"];
 
             // For each deformable object we get some standard information
-            // TODO: Include particle information
             foreach(FlexActor defobject in registeredFlexObjects){
 
                DeformableObjectGroup[defobject.gameObject.name] = new H5Group()
                 {
                     ["position"] = defobject.gameObject.transform.position,
                     ["rotation"] = defobject.gameObject.transform.rotation,
-                    ["n_particles"] = defobject.GetParticleNum()
+                    ["n_particles"] = defobject.GetParticleNum(),
+                    ["particles_info"] = defobject.GetParticles()
                 };
+
+
             }
         }
     }
+
+    /*private void storeParticlesInfo(H5Group particlesGroup, FlexActor DefObj){
+
+
+    }*/
 
     private void AddMatlabParams(H5Group timestampGroup){
         // If we are tracking some control params (double check)

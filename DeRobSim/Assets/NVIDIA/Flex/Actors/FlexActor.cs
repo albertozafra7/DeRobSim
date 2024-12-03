@@ -196,6 +196,10 @@ namespace NVIDIA.Flex
             return particle_start_id;
         }
 
+        public Vector4[] GetParticles(){
+            return (Vector4[])allParticles.Clone();
+        }
+
         #endregion
 
         #region Messages
@@ -511,7 +515,7 @@ namespace NVIDIA.Flex
             AcquireAsset();
             CreateInstance();
 
-            if(allParticles.Length < particle_num)
+            if(allParticles.Length != particle_num)
                 System.Array.Resize(ref allParticles, particle_num);
         }
 

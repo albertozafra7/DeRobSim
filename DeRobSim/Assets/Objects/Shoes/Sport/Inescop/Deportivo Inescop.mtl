@@ -1,0 +1,129 @@
+# File produced by Open Asset Import Library (http://www.assimp.sf.net)
+# (assimp v5.4.0)
+
+newmtl Defaults_Black
+Kd 0 0 0
+Ke 0 0 0
+d 1
+Ns 250
+illum 2
+
+newmtl Defaults_Gray
+Kd 0.520995617 0.520995617 0.520995617
+Ke 0 0 0
+d 1
+Ns 250
+illum 2
+
+newmtl System_lightStyle_unselect
+Kd 0.871367097 0.644479692 0.527115166
+Ke 0 0 0
+d 1
+Ns 250
+illum 2
+
+newmtl ZOOM 20 830 FRANCIA
+Kd 0.386429459 0.371237695 0.323143244
+Ke 0 0 0
+d 1
+illum 1
+bump textures/image_1.png
+map_bump textures/image_1.png
+
+newmtl C.J.B_Suela_Suela Negro - copia
+Kd 1 1 1
+Ke 0 0 0
+d 1
+illum 1
+map_Kd textures/image_2.png
+
+newmtl C.J.B_Rejilla__46 REJILLA Blanca
+Kd 0.658374846 0.55834043 0.407240242
+Ke 0 0 0
+d 1
+illum 1
+bump textures/image_4.png
+map_bump textures/image_4.png
+
+newmtl C.J.B_Rejilla__46 REJILLA Beig
+Kd 0.479320198 0.445201218 0.337163657
+Ke 0 0 0
+d 1
+illum 1
+bump textures/image_6.png
+map_bump textures/image_6.png
+
+newmtl C.J.B_Rejilla__46 REJILLA Naranja
+Kd 0.491020888 0.254152119 0.0953074694
+Ke 0 0 0
+d 1
+illum 1
+bump textures/image_8.png
+map_bump textures/image_8.png
+
+newmtl C.J.B_Tibet_Tibet Beig - copia - copia
+Kd 0.386429459 0.238397598 0.0781874284
+Ke 0 0 0
+d 1
+illum 1
+bump textures/image_10.png
+map_bump textures/image_10.png
+
+newmtl C.J.B_Rejilla Frontura_BEIG 2
+Kd 1 1 1
+Ke 0 0 0
+d 1
+illum 1
+map_Kd textures/image_12.png
+bump textures/image_13.png
+map_bump textures/image_13.png
+
+newmtl C.J.B_Rejilla Frontura_BEIG - copia (2)
+Kd 1 1 1
+Ke 0 0 0
+d 1
+illum 1
+map_Kd textures/image_15.png
+bump textures/image_16.png
+map_bump textures/image_16.png
+
+newmtl C.J.B_Ante_Ante Blanco - copia
+Kd 0.973445296 0.973445296 0.973445296
+Ke 0 0 0
+d 1
+illum 1
+bump textures/image_18.png
+map_bump textures/image_18.png
+
+newmtl C.J.B_Ante_Ante - Cuero - copia (2)
+Kd 0.266355634 0.144128472 0.0368894525
+Ke 0 0 0
+d 1
+illum 1
+bump textures/image_20.png
+map_bump textures/image_20.png
+
+newmtl C.J.B_Ante_Ante - Beig - copia
+Kd 0.313988745 0.274677336 0.212230757
+Ke 0 0 0
+d 1
+illum 1
+bump textures/image_22.png
+map_bump textures/image_22.png
+
+newmtl C.J.B_Ante_Ante - Nautic Oscuro
+Kd 0.0409151986 0.0395462364 0.107023105
+Ke 0 0 0
+d 1
+illum 1
+bump textures/image_24.png
+map_bump textures/image_24.png
+
+newmtl C.J.B_Ante_Ante Rojo Claro - copia (2)
+Kd 0.23455061 0.152926162 0.152926162
+Ke 0 0 0
+d 1
+illum 1
+bump textures/image_26.png
+map_bump textures/image_26.png
+

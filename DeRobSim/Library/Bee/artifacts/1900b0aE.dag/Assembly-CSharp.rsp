@@ -395,7 +395,7 @@
 "Assets/Scripts/Debug/DebugLogger.cs"
 "Assets/Scripts/Debug/HDF5Manager.cs"
 "Assets/Scripts/DragForce.cs"
-"Assets/Scripts/ForceMeasurement.cs"
+"Assets/Scripts/ForceMeasurement/ForceMeasurement.cs"
 "Assets/Scripts/Grabbing/Grabber.cs"
 "Assets/Scripts/Grabbing/setActiveGrab.cs"
 "Assets/Scripts/Videos/AgentTranslator.cs"
