@@ -3263,7 +3263,7 @@ MonoBehaviour:
   fileName: CubeTestForce.h5
   filePath: SimulationLogs
   saveLog: 1
-  updateSaveInterval: 0.25
+  updateSaveInterval: 0.05
   registeredTransforms: []
   registeredAgents: []
   registeredFlexObjects:

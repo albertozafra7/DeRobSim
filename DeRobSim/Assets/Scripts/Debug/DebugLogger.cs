@@ -57,7 +57,7 @@ public class DebugLogger : MonoBehaviour
         h5file["Matlab"] = new H5Group();
 
         // We update the lastSaveInterval
-        lastSaveInterval = Time.realtimeSinceStartup;
+        lastSaveInterval = float.MinValue; // We make it the minimum value to store the first frame information
     }
 
     // Update is called once per frame
@@ -184,12 +184,33 @@ public class DebugLogger : MonoBehaviour
             // For each deformable object we get some standard information
             foreach(FlexActor defobject in registeredFlexObjects){
 
-               DeformableObjectGroup[defobject.gameObject.name] = new H5Group()
+                // We get the mesh of the deformable object for storing its vertices
+                SkinnedMeshRenderer defSkin = defobject.gameObject.GetComponent<SkinnedMeshRenderer>();
+                Mesh defmesh = new Mesh();
+
+                defSkin.BakeMesh(defmesh);
+
+                // We get a copy of the vertices position
+                Vector3[] defVerts = defmesh.vertices;
+                // We transform them to the world coordinates
+                defobject.gameObject.transform.TransformPoints(defVerts);
+                // // We get a copy of the tetrahedra nodes' position
+                // Vector3[] def_tetNodes = defobject.gameObject.GetComponent<TetrahedronDeformation>().tetrahedronVertices;
+                // // We transform them to the world coordinates
+                // defobject.gameObject.transform.TransformPoints(def_tetNodes);
+
+                DeformableObjectGroup[defobject.gameObject.name] = new H5Group()
                 {
                     ["position"] = defobject.gameObject.transform.position,
                     ["rotation"] = defobject.gameObject.transform.rotation,
                     ["n_particles"] = defobject.GetParticleNum(),
-                    ["particles_info"] = defobject.GetParticles()
+                    ["particles_info"] = defobject.GetParticles(),
+                    ["n_vertices"] = defmesh.vertexCount,
+                    ["vertex_info"] = defVerts,
+                    ["mesh_triangles"] = defobject.GetTriangles(),
+                    ["n_triangles"] = defobject.GetTriangles().Length
+                    // ["tetrahedra"] = defobject.gameObject.GetComponent<TetrahedronDeformation>().tetrahedronTriangles,
+                    // ["tet_verts"] = def_tetNodes
                 };
 
 

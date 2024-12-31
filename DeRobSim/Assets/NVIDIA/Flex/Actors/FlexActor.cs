@@ -200,6 +200,10 @@ namespace NVIDIA.Flex
             return (Vector4[])allParticles.Clone();
         }
 
+        public Vector3[] GetTriangles(){
+            return flexTriangles;
+        }
+
         #endregion
 
         #region Messages
@@ -396,6 +400,8 @@ namespace NVIDIA.Flex
         int particle_num = 0;    // Ending particle id of the actor within the container
 
         List<Dictionary<int,Vector3>> particlesOffset = new List<Dictionary<int,Vector3>>();
+
+        Vector3[] flexTriangles;
         protected virtual void OnFlexUpdate(FlexContainer.ParticleData _particleData)
         {
             UpdateDrawParticles();           
@@ -517,6 +523,8 @@ namespace NVIDIA.Flex
 
             if(allParticles.Length != particle_num)
                 System.Array.Resize(ref allParticles, particle_num);
+
+            LoadTriangularMesh();
         }
 
         void DestroyActor()
@@ -673,6 +681,37 @@ namespace NVIDIA.Flex
                         _particleData.SetVelocity(index, _particleData.GetVelocity(index) + velocityChange);
                     }
                 }
+            }
+        }
+
+        void LoadTriangularMesh()
+        {
+            // We get the mesh of the deformable object
+            SkinnedMeshRenderer defSkin = gameObject.GetComponent<SkinnedMeshRenderer>();
+            MeshFilter defMeshFilter = gameObject.GetComponent<MeshFilter>();
+            Mesh defmesh = new Mesh();
+
+            // Store the mesh
+            if(defSkin != null)
+                defSkin.BakeMesh(defmesh);
+            else
+                defmesh = defMeshFilter.mesh;
+
+            // Get the triangles of the mesh
+            int[] triangles = defmesh.triangles;
+            
+            System.Array.Resize(ref flexTriangles, (int)(triangles.Length/3));
+
+            // For each triangle, store it in a 3xN_triangles matrix using the Vector3 structure
+            for (int i = 0; i < triangles.Length; i += 3)
+            {
+                int idx0 = triangles[i];
+                int idx1 = triangles[i + 1];
+                int idx2 = triangles[i + 2];
+
+                flexTriangles[(int)(i/3)] = new Vector4(idx0,  // Vertex 0
+                                                        idx1,  // Vertex 1
+                                                        idx2); // Vertex 2
             }
         }
 
