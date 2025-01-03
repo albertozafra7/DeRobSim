@@ -1,0 +1,49 @@
+#pragma kernel InterpolateVertices
+
+// Buffers
+StructuredBuffer<float3> SurfaceVertices;
+StructuredBuffer<int> MappingIndices;
+StructuredBuffer<int> MappingOffsets;
+RWStructuredBuffer<float3> TetrahedralVertices;
+
+// Uniforms
+float4x4 MeshTransform;
+float4x4 InverseTransform;
+
+[numthreads(64, 1, 1)]
+void InterpolateVertices(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+    if (index >= TetrahedralVertices.Length)
+        return;
+
+    // Fetch the start and end indices for the mapping
+    int start = MappingOffsets[index];
+    int end = MappingOffsets[index + 1];
+    int count = end - start;
+
+    if (count == 0)
+        return;
+
+    // Initialize interpolated position
+    float3 interpolatedPositionWorld = float3(0, 0, 0);
+
+    // Accumulate positions from mapped surface vertices in world space
+    for (int i = start; i < end; i++)
+    {
+        int surfaceIndex = MappingIndices[i];
+        // Use MeshTransform to get world-space positions
+        float3 surfaceWorldPos = mul(MeshTransform, float4(SurfaceVertices[surfaceIndex], 1)).xyz;
+        interpolatedPositionWorld += surfaceWorldPos;
+    }
+
+    // Average the position
+    interpolatedPositionWorld /= count;
+
+    // Since you're working in world space, no need to back-transform if you don't require local space
+    // If you do need local space, uncomment the next line:
+    // float3 interpolatedPositionLocal = mul(InverseTransform, float4(interpolatedPositionWorld, 1)).xyz;
+
+    // Update the tetrahedral vertex position in world space (or local space if required)
+    TetrahedralVertices[index] = interpolatedPositionWorld;
+}

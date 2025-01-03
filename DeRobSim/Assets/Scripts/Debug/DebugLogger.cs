@@ -194,25 +194,40 @@ public class DebugLogger : MonoBehaviour
                 Vector3[] defVerts = defmesh.vertices;
                 // We transform them to the world coordinates
                 defobject.gameObject.transform.TransformPoints(defVerts);
-                // // We get a copy of the tetrahedra nodes' position
-                // Vector3[] def_tetNodes = defobject.gameObject.GetComponent<TetrahedronDeformation>().tetrahedronVertices;
-                // // We transform them to the world coordinates
-                // defobject.gameObject.transform.TransformPoints(def_tetNodes);
 
-                DeformableObjectGroup[defobject.gameObject.name] = new H5Group()
+                // We get the tetrahedral mesh information (if any)
+                TetrahedralMeshTracking deftets = defobject.gameObject.GetComponent<TetrahedralMeshTracking>();
+
+                if(deftets != null)
                 {
-                    ["position"] = defobject.gameObject.transform.position,
-                    ["rotation"] = defobject.gameObject.transform.rotation,
-                    ["n_particles"] = defobject.GetParticleNum(),
-                    ["particles_info"] = defobject.GetParticles(),
-                    ["n_vertices"] = defmesh.vertexCount,
-                    ["vertex_info"] = defVerts,
-                    ["mesh_triangles"] = defobject.GetTriangles(),
-                    ["n_triangles"] = defobject.GetTriangles().Length
-                    // ["tetrahedra"] = defobject.gameObject.GetComponent<TetrahedronDeformation>().tetrahedronTriangles,
-                    // ["tet_verts"] = def_tetNodes
-                };
-
+                    DeformableObjectGroup[defobject.gameObject.name] = new H5Group()
+                    {
+                        ["position"] = defobject.gameObject.transform.position,
+                        ["rotation"] = defobject.gameObject.transform.rotation,
+                        ["n_particles"] = defobject.GetParticleNum(),
+                        ["particles_info"] = defobject.GetParticles(),
+                        ["n_vertices"] = defmesh.vertexCount,
+                        ["vertex_info"] = defVerts,
+                        ["mesh_triangles"] = defobject.GetTriangles(),
+                        ["n_triangles"] = defobject.GetTriangles().Length,
+                        ["n_tetrahedra"] = deftets.GetTetrahedraNum(),
+                        ["mesh_tetrahedrons"] = deftets.tetrahedrons2Vector4(),
+                        ["n_tetverts"] = deftets.GetTetVertsNum(),
+                        ["tetverts_info"] = deftets.GetTetVertsPosition()
+                    };
+                } else {
+                    DeformableObjectGroup[defobject.gameObject.name] = new H5Group()
+                    {
+                        ["position"] = defobject.gameObject.transform.position,
+                        ["rotation"] = defobject.gameObject.transform.rotation,
+                        ["n_particles"] = defobject.GetParticleNum(),
+                        ["particles_info"] = defobject.GetParticles(),
+                        ["n_vertices"] = defmesh.vertexCount,
+                        ["vertex_info"] = defVerts,
+                        ["mesh_triangles"] = defobject.GetTriangles(),
+                        ["n_triangles"] = defobject.GetTriangles().Length
+                    };
+                }
 
             }
         }

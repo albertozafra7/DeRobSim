@@ -1,0 +1,70 @@
+#pragma kernel CSMain
+
+// Input buffers
+StructuredBuffer<float3> tetrahedralVertices;
+StructuredBuffer<float3> surfaceVertices;
+
+// Output buffers
+RWStructuredBuffer<int> nearestNeighbors;
+
+// Constants
+int n_NNNodes; // Number of Nearest Neighbors
+
+// Uniforms
+float4x4 MeshTransform;
+
+[numthreads(256, 1, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= tetrahedralVertices.Length) return;
+
+    float3 tetraVertex = tetrahedralVertices[id.x];
+    float distances[3];
+    int indices[3];
+
+    // Initialize with maximum values
+    for (int n = 0; n < n_NNNodes; n++)
+    {
+        distances[n] = 1e9f;
+        indices[n] = -1;
+    }
+
+    // Iterate over surface vertices to calculate nearest neighbors
+    for (uint j = 0; j < surfaceVertices.Length; j++)
+    {
+        float3 surfaceWorldPos = mul(MeshTransform, float4(surfaceVertices[j], 1)).xyz;
+        float distance = length(tetraVertex - surfaceWorldPos);
+
+        // Check if this distance is smaller than the farthest distance we have
+        if (distance < distances[n_NNNodes - 1])
+        {
+            distances[n_NNNodes - 1] = distance;
+            indices[n_NNNodes - 1] = j;
+
+            // Ensure neighbors are sorted by distance (simple insertion sort for a fixed number of neighbors)
+            for (int k = n_NNNodes - 1; k > 0; k--)
+            {
+                if (distances[k] < distances[k - 1])
+                {
+                    float tempDist = distances[k];
+                    distances[k] = distances[k - 1];
+                    distances[k - 1] = tempDist;
+
+                    int tempIndex = indices[k];
+                    indices[k] = indices[k - 1];
+                    indices[k - 1] = tempIndex;
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+    }
+
+    // Write the nearest neighbors to the output buffer
+    for (int i = 0; i < n_NNNodes; i++)
+    {
+        nearestNeighbors[id.x * n_NNNodes + i] = indices[i];
+    }
+}
