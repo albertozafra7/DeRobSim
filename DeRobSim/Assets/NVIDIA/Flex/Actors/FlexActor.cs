@@ -709,7 +709,7 @@ namespace NVIDIA.Flex
                 int idx1 = triangles[i + 1];
                 int idx2 = triangles[i + 2];
 
-                flexTriangles[(int)(i/3)] = new Vector4(idx0,  // Vertex 0
+                flexTriangles[(int)(i/3)] = new Vector3(idx0,  // Vertex 0
                                                         idx1,  // Vertex 1
                                                         idx2); // Vertex 2
             }
