@@ -459,7 +459,8 @@ public class TetrahedralMeshTracking : MonoBehaviour
 
         for(int i = 0; i < tetrahedra.Count; i++)
         {
-            tetrahedralElements[i] = new Vector4((float)tetrahedra[i][0]+1.0f, (float)tetrahedra[i][1]+1.0f, (float)tetrahedra[i][2]+1.0f, (float)tetrahedra[i][3]+1.0f);
+            // tetrahedralElements[i] = new Vector4((float)tetrahedra[i][0]+1.0f, (float)tetrahedra[i][1]+1.0f, (float)tetrahedra[i][2]+1.0f, (float)tetrahedra[i][3]+1.0f);
+            tetrahedralElements[i] = new Vector4((float)tetrahedra[i][0], (float)tetrahedra[i][1], (float)tetrahedra[i][2], (float)tetrahedra[i][3]);
         }
 
         return tetrahedralElements;
