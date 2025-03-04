@@ -1,5 +1,5 @@
 sceneSetups:
-- path: Assets/Scenes/ForceMeasurement/TET_BeamScene.unity
+- path: Assets/Scenes/Control/Force_CaseUses/AntiGravityBeamTest.unity
   isLoaded: 1
   isActive: 1
   isSubScene: 0

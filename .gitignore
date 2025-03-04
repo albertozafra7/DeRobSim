@@ -76,6 +76,9 @@ crashlytics-build.properties
 desktop.ini
 **/desktop.ini
 
+# Simulation Logs
+/DeRobSim/Assets/SimulationLogs/
+
 # Matlab Libraries
 /DeRobSim/Assets/Matlab/MWArray.dll
 /DeRobSim/Assets/Scripts/Control/MATLAB LIBS/MatlabControlLib.dll
