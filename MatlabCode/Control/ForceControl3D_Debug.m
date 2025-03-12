@@ -25,7 +25,7 @@
 % Author: Alberto Zafra Navarro, January 2025
 
 % function [v, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual] = ForceControl3D_Debug(vert_origins, vert_positions, vert_prevpositions, agent_positions, agent_destinations, meshTetrahedrons, prev_stressTensor, E, nu, yield_stress, SF, kCBF, katt, krep, cbf_alpha, kH, kG, ks, kg, kth, sd, thd, vsat)
-function [v, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual] = ForceControl3D_Debug(vert_origins, vert_positions, agent_positions, agent_destinations, meshTetrahedrons, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, kH, kG, ks, kg, kth, sd, thd, vsat)
+function [v, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual, curr_vmSigma, curr_SigmaTensor] = ForceControl3D_Debug(vert_origins, vert_positions, agent_positions, agent_destinations, meshTetrahedrons, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, kH, kG, ks, kg, kth, sd, thd, vsat)
 
     % ++++++++++ Optional parameters evaluation ++++++++++
 

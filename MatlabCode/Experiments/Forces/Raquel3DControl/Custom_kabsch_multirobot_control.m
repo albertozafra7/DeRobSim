@@ -55,7 +55,7 @@ T = kron(eye(N),S);
 
 % Time parameters - The simulated time in seconds will be nit*dt
 dt = 0.01;      % time step of the simulation
-niters = 1600;  % number of iterations of the control loop
+niters = 700;%1600;  % number of iterations of the control loop
 
 % Physical parameters
 E = 210e3; % Young Modulus (Pa)
@@ -296,20 +296,22 @@ cbf_alpha = 1;   % for controlling the risks taken by the barrier function
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Each of the following will be a growing array that will store the values of variables at each iteration
-ps = [];        % positions
-ps_msm = [];    % position to use in msm code
-gammas_H = [];  % cost relative to shape-preserving transformation
-gammas_G = [];  % cost relative to configuration consistent with our deformation modes
-hs = [];        % parameters of the optimal shape-preserving transformation
-egs = [];       % centroid errors
-ess = [];       % scale errors
-eths = [];      % rotation eror
-eth_xs = [];    % x angle errors
-eth_ys = [];    % y angle errors
-eth_zs = [];    % z angle errors
-dx_unis = [];   % unicycle velocities
-vs = [];        % linear velocities
-nvs = [];       % linear velocities norm
+ps = [];                % positions
+ps_msm = [];            % position to use in msm code
+gammas_H = [];          % cost relative to shape-preserving transformation
+gammas_G = [];          % cost relative to configuration consistent with our deformation modes
+hs = [];                % parameters of the optimal shape-preserving transformation
+egs = [];               % centroid errors
+ess = [];               % scale errors
+eths = [];              % rotation eror
+eth_xs = [];            % x angle errors
+eth_ys = [];            % y angle errors
+eth_zs = [];            % z angle errors
+dx_unis = [];           % unicycle velocities
+vs = [];                % linear velocities
+nvs = [];               % linear velocities norm
+vm_stresses = [];       % von Mises stresses
+tensor_stresses = [];   % stress tensors
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -484,7 +486,7 @@ for it_loop = 1:niters
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% Control Algorithm
 
-    [u, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual] = ForceControl3D_Debug(Pob0', Pob', reshape(p, [ndims,N]), agent_destinations, omesh.elements, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
+    [u, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual, vm_stress, stress_tensor] = ForceControl3D_Debug(Pob0', Pob', reshape(p, [ndims,N]), agent_destinations, omesh.elements, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% Errors
@@ -499,6 +501,10 @@ for it_loop = 1:niters
     eth_xs = [eth_xs; eth_individual(1)];
     eth_ys = [eth_ys; eth_individual(2)];
     eth_zs = [eth_zs; eth_individual(3)];
+
+    % Store the stress values
+    vm_stresses = [vm_stresses; vm_stress];
+    tensor_stresses = cat(3, tensor_stresses, stress_tensor);
     
     %%%%%%%%%%%%%%%%%%%%%%% 
     
@@ -531,7 +537,7 @@ for it_loop = 1:niters
         end
     end
     
-    pause(0.05) % we give some time for the user to visualize the created plot
+    pause(0.005) % we give some time for the user to visualize the created plot
  
 end
 

@@ -86,28 +86,28 @@ omesh = create_mesh3D(nx, ny, nz, sx * scale_ob, sy * scale_ob, sz * scale_ob); 
 omesh.shape = omesh.shape + [0, 0, -1*(min(omesh.shape(:,3))<0)*min(omesh.shape(:,3))];
 
 %% Get the tetrahedrons
-X = omesh.shape(:,1);
-Y = omesh.shape(:,2);
-Z = omesh.shape(:,3);
-
-shp = alphaShape(X(:), Y(:), Z(:));
-surfTriangles = boundaryFacets(shp);
-gm = fegeometry([X(:), Y(:), Z(:)], surfTriangles);
-model = femodel(AnalysisType="structuralStatic", Geometry=gm);
-model.MaterialProperties = materialProperties(YoungsModulus=210e10, PoissonsRatio=0.3, MassDensity=2.7e-6);
-model = generateMesh(model, GeometricOrder="linear");
-% initialTetPositions = model.Geometry.Mesh.Nodes'; % Transpose for [x, y, z] format
-
-%% Save the new mesh data in omesh
-% omesh contains the node positions (
-
-% Node positions
-omesh.shape = model.Geometry.Mesh.Nodes'; % (Npx3)
-omesh.shape = omesh.shape + [0, 0, -1*(min(omesh.shape(:,3))<0)*min(omesh.shape(:,3))];
-% Mesh Model
-omesh.meshModel = model;
-% Mesh Tetrahedra
-omesh.elements = model.Geometry.Mesh.Elements'; % (Ntetx4)
+% X = omesh.shape(:,1);
+% Y = omesh.shape(:,2);
+% Z = omesh.shape(:,3);
+% 
+% shp = alphaShape(X(:), Y(:), Z(:));
+% surfTriangles = boundaryFacets(shp);
+% gm = fegeometry([X(:), Y(:), Z(:)], surfTriangles);
+% model = femodel(AnalysisType="structuralStatic", Geometry=gm);
+% model.MaterialProperties = materialProperties(YoungsModulus=210e10, PoissonsRatio=0.3, MassDensity=2.7e-6);
+% model = generateMesh(model, GeometricOrder="linear");
+% % initialTetPositions = model.Geometry.Mesh.Nodes'; % Transpose for [x, y, z] format
+% 
+% %% Save the new mesh data in omesh
+% % omesh contains the node positions (
+% 
+% % Node positions
+% omesh.shape = model.Geometry.Mesh.Nodes'; % (Npx3)
+% omesh.shape = omesh.shape + [0, 0, -1*(min(omesh.shape(:,3))<0)*min(omesh.shape(:,3))];
+% % Mesh Model
+% omesh.meshModel = model;
+% % Mesh Tetrahedra
+% omesh.elements = model.Geometry.Mesh.Elements'; % (Ntetx4)
 
 %% Definition of reference, initial and target configurations
 
@@ -434,7 +434,7 @@ for it_loop = 1:niters
     ps_msm = [ps_msm, p_msm'];
     
     % Current formation centroid
-    g = (1/N) * [sum(p(1:3:end)); sum(p(2:3:end)); sum(p(3:3:end))];
+    g = (1/N) * [sum(p(1:3:end)); sum(p(2:3:end)); sum(p(3:3:end))]; % (3x1)
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
@@ -456,6 +456,7 @@ for it_loop = 1:niters
         object_lines(i).ZData = [p(3*pairs(i,1)), p(3*pairs(i,2))];
     end
 
+    % Simulate how the object is deformed
     Pob = simulate_object_arap(arap_params, Pob, [reshape(p, [3,N])]);
 
     if with_object == 1
@@ -478,12 +479,12 @@ for it_loop = 1:niters
     end
 
     agent_destinations = p_agentsFrom_g0 + repmat(gd',N,1);
-    agent_destinations = agent_destinations';
+    agent_destinations = agent_destinations'; % (3xNa)
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% Control Algorithm
 
-    [u, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual] = ForceControl3D_Debug(Pob0, Pob, reshape(p, [ndims,N]), agent_destinations, tetrahedra, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
+    [u, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual, vm_stress, stress_tensor] = ForceControl3D_Debug(Pob0', Pob', reshape(p, [ndims,N]), agent_destinations, omesh.elements, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% Errors
@@ -498,16 +499,15 @@ for it_loop = 1:niters
     eth_xs = [eth_xs; eth_individual(1)];
     eth_ys = [eth_ys; eth_individual(2)];
     eth_zs = [eth_zs; eth_individual(3)];
+
+    % Store the stress values
+    vm_stresses = [vm_stress; vm_stress];
+    tensor_stresses = cat(3, tensor_stresses, stress_tensor);
     
     %%%%%%%%%%%%%%%%%%%%%%% 
     
-    % Velocity saturation
-    for i = 1:N
-        if norm(u(3*i-2:3*i,:)) > u_sat
-            u(3*i-2:3*i,:) = u_sat * u(3*i-2:3*i,:) / norm(u(3*i-2:3*i,:));
-        end
-    end
-    
+    u = u(:);
+
     p = p + u*dt; % apply control input
     
     % Velocity norm
@@ -535,7 +535,7 @@ for it_loop = 1:niters
         end
     end
     
-    pause(0.05) % we give some time for the user to visualize the created plot
+    pause(0.005) % we give some time for the user to visualize the created plot
  
 end
 
