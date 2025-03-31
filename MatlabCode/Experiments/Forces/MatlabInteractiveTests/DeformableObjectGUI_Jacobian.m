@@ -75,17 +75,17 @@ function DeformableObjectGUI
     
     % +++ Particles and Data Initialization +++
 
-    nx = 9; % number of nodes in x direction of the grid
-    ny = 13;% numbe of nodes in y direction of the grid
-    nz = 3; % number of nodes in z direction of the grid
+    nx = 5; %9; % number of nodes in x direction of the grid
+    ny = 5; %13;% numbe of nodes in y direction of the grid
+    nz = 5; %3; % number of nodes in z direction of the grid
     
-    sx = 4; % length of the object in x direction (in the graphics, it will be the 'y' direction)
-    sy = 6; % length of the object in y direction (only relevant if ob_type = 1) (in the graphics, it will be the x direction)
-    sz = 2; % length of the object in z direction
+    sx = 1; %4; % length of the object in x direction (in the graphics, it will be the 'y' direction)
+    sy = 1; %6; % length of the object in y direction (only relevant if ob_type = 1) (in the graphics, it will be the x direction)
+    sz = 1; %2; % length of the object in z direction
     
     % We need to reduce the defined object for the Robotarium experiment because its
     % working area is smaller.
-    scale_ob = 0.3;
+    scale_ob = 1; %0.3;
     omesh = create_mesh3D(nx, ny, nz, sx * scale_ob, sy * scale_ob, sz * scale_ob); % mesh of the object: its shape and the links between nodes
     % We put the object over the Z axis (which means that the lowest part of
     % the body will be at 0 or over, regarding the Z axis, so it does not go
@@ -119,14 +119,14 @@ function DeformableObjectGUI
     % Number of Agents
     N = 8;
     % Agent's Initial Positions (Each one at a vertex of the object)
-    agent_poses = [ 0.9,  0.6,  0.6;... % Agent 1
-                    0.9, -0.6,  0.6;... % Agent 2
-                   -0.9, -0.6,  0.6;... % Agent 3
-                   -0.9,  0.6,  0.6;... % Agent 4
-                    0.9,  0.6,  0.0;... % Agent 5
-                    0.9, -0.6,  0.0;... % Agent 6
-                   -0.9, -0.6,  0.0;... % Agent 7
-                   -0.9,  0.6,  0.0];   % Agent 8
+    agent_poses = [ 0.5,  0.5,  1.0;... % Agent 1
+                    0.5, -0.5,  1.0;... % Agent 2
+                   -0.5, -0.5,  1.0;... % Agent 3
+                   -0.5,  0.5,  1.0;... % Agent 4
+                    0.5,  0.5,  0.0;... % Agent 5
+                    0.5, -0.5,  0.0;... % Agent 6
+                   -0.5, -0.5,  0.0;... % Agent 7
+                   -0.5,  0.5,  0.0];   % Agent 8
     % Object's Initial Centroid Position (Mean of the Agent's positions for this problem)
     g0 = mean(agent_poses)';
     % Initial Scale Factor
@@ -581,14 +581,14 @@ function DeformableObjectGUI
         data.positions = data.initialPositions;
         data.selected(:) = false;
         data.fixed(:) = false;
-        data.agentPoses = [ 0.9,  0.6,  0.6;... % Agent 1
-                            0.9, -0.6,  0.6;... % Agent 2
-                           -0.9, -0.6,  0.6;... % Agent 3
-                           -0.9,  0.6,  0.6;... % Agent 4
-                            0.9,  0.6,  0.0;... % Agent 5
-                            0.9, -0.6,  0.0;... % Agent 6
-                           -0.9, -0.6,  0.0;... % Agent 7
-                           -0.9,  0.6,  0.0];   % Agent 8
+        data.agentPoses = [ 0.5,  0.5,  1.0;... % Agent 1
+                            0.5, -0.5,  1.0;... % Agent 2
+                           -0.5, -0.5,  1.0;... % Agent 3
+                           -0.5,  0.5,  1.0;... % Agent 4
+                            0.5,  0.5,  0.0;... % Agent 5
+                            0.5, -0.5,  0.0;... % Agent 6
+                           -0.5, -0.5,  0.0;... % Agent 7
+                           -0.5,  0.5,  0.0];   % Agent 8
         fig.UserData = data;
         updatePlot();
 

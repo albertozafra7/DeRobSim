@@ -1,9 +1,32 @@
-clear all
-close all
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%%%%%%%%%%%%%%%%% CUBE MESH %%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+clear;
+close all;
+clc; 
+
+%% General Script configuration
+% Trajectory config
+waypoints = false;
+rotation_z = false;
+having_obstacles = false;
+moveNdim = 1; % 1 -> Movement in X; 2 -> Movement in X and Y; 3 -> Movement in 3D
+
+% If we want to use the Control Barrier Functions
+forceCBF = true;
+
+% If we want to plot the control results
+plotTetramesh = false;
+plotCResults = false;
+plotCResultsCBF = true;
+plotCBFDifferences = true;
+plotControlOutputs = false;
+plotVelComp = true;
+plotStresses = false;
 
 %% We add the paths of the folder and subfolders we will need.
 
-load('.\Experiments\Forces\MatlabInteractiveTests\JacobianTests.mat');
+load('.\Experiments\Forces\MatlabInteractiveTests\JacobianUnitaryCube.mat');
 clear agent_actions mesh_model n_experiments particle_displacements vonMisesValues;
 
 Aux_path = genpath('Multirobot_control_3D_aux_files');
@@ -55,35 +78,41 @@ T = kron(eye(N),S);
 
 % Time parameters - The simulated time in seconds will be nit*dt
 dt = 0.01;      % time step of the simulation
-niters = 1600;  % number of iterations of the control loop
+niters = 700;%1600;  % number of iterations of the control loop
 
 % Physical parameters
-E = 210e3; % Young Modulus (Pa)
-nu = 0.3; % Poisson Ratio (Unitless) [-0.1,0.5]
+E = 3000; % Young Modulus (Pa)
+nu = 0.01; % Poisson Ratio (Unitless) [-0.1,0.5]
 kext = 10; % Stiffness off the external forces (N/m)
 yield_stress = 210e2; % Yield Stress (Pa)
-SF = 0.8; % Safety Factor (Unitless)
+SF = 0.0005;
+% SF = 0.8; % Safety Factor (Unitless)
 
 
 %% We define the object's nodes arranged in a rectangular grid
 
-nx = 9; % number of nodes in x direction of the grid
-ny = 13;% numbe of nodes in y direction of the grid
-nz = 3; % number of nodes in z direction of the grid
+nx = 5; % number of nodes in x direction of the grid
+ny = 5;% number of nodes in y direction of the grid
+nz = 5; % number of nodes in z direction of the grid
 
-sx = 4; % length of the object in x direction (in the graphics, it will be the 'y' direction)
-sy = 6; % length of the object in y direction (only relevant if ob_type = 1) (in the graphics, it will be the x direction)
-sz = 2; % length of the object in z direction
+sx = 1; % length of the object in x direction (in the graphics, it will be the 'y' direction)
+sy = 1; % length of the object in y direction (only relevant if ob_type = 1) (in the graphics, it will be the x direction)
+sz = 1; % length of the object in z direction
 
 % We need to reduce the defined object for the Robotarium experiment because its
 % working area is smaller.
-scale_ob = 0.3;
+scale_ob = 1;
 
 omesh = create_mesh3D(nx, ny, nz, sx * scale_ob, sy * scale_ob, sz * scale_ob); % mesh of the object: its shape and the links between nodes
 % We put the object over the Z axis (which means that the lowest part of
 % the body will be at 0 or over, regarding the Z axis, so it does not go
 % under the floorte
 omesh.shape = omesh.shape + [0, 0, -1*(min(omesh.shape(:,3))<0)*min(omesh.shape(:,3))];
+
+if plotTetramesh
+    figure;
+    tetramesh(omesh.elements, omesh.shape);
+end
 
 %% Get the tetrahedrons
 % X = omesh.shape(:,1);
@@ -120,14 +149,14 @@ initialTetPositions = omesh.shape; % (Npx3)
 Pob0 = omesh.shape'; % (3xNp)
 
 % Agent's Initial Positions (Each one at a vertex of the object)
-p_init = [ 0.9,  0.6,  0.6;... % Agent 1
-           0.9, -0.6,  0.6;... % Agent 2
-          -0.9, -0.6,  0.6;... % Agent 3
-          -0.9,  0.6,  0.6;... % Agent 4
-           0.9,  0.6,  0.0;... % Agent 5
-           0.9, -0.6,  0.0;... % Agent 6
-          -0.9, -0.6,  0.0;... % Agent 7
-          -0.9,  0.6,  0.0];   % Agent 8
+p_init = [ 0.5,  0.5,  1.0;... % Agent 1
+           0.5, -0.5,  1.0;... % Agent 2
+          -0.5, -0.5,  1.0;... % Agent 3
+          -0.5,  0.5,  1.0;... % Agent 4
+           0.5,  0.5,  0.0;... % Agent 5
+           0.5, -0.5,  0.0;... % Agent 6
+          -0.5, -0.5,  0.0;... % Agent 7
+          -0.5,  0.5,  0.0];   % Agent 8
 
 % Object's Initial Centroid Position (Mean of the Agent's positions for this problem)
 g0 = mean(p_init)'; % (3x1)
@@ -144,9 +173,20 @@ th0_x = 0*pi/180; % All set to 0 rad
 th0_y = 0*pi/180;
 th0_z = 0*pi/180;
 
-% Desired (target) Centroid Position
-gd = g0 + [-2.7, 0, 0]'; % We want to have a movement in the X axis (but rotating the object)
-gd_final = gd; % Used later in the control logic (waypoint handling)
+switch moveNdim
+    case 1
+        % Desired (target) Centroid Position
+        gd = g0 + [-2.7, 0, 0]'; % We want to have a movement in the X axis (but rotating the object)
+        gd_final = gd; % Used later in the control logic (waypoint handling)
+    case 2
+        % Desired (target) Centroid Position
+        gd = g0 + [-2.7, 3.0, 0]'; % We want to have a movement in the X and the Y axis (but rotating the object)
+        gd_final = gd; % Used later in the control logic (waypoint handling)
+    otherwise
+        % Desired (target) Centroid Position
+        gd = g0 + [-2.7, 3.0, 1.0]'; % We want to have a movement in the 3 axis (but rotating the object)
+        gd_final = gd; % Used later in the control logic (waypoint handling)
+end
 
 % Desired Scale Factor
 sd0 = 1; % No Change
@@ -154,11 +194,11 @@ sd0 = 1; % No Change
 % Desired Rotation Angles
 thd0_x = 0*pi/180;    % 0 deg
 thd0_y = 0*pi/180;    % 0 deg
-thd0_z = -180*pi/180; % Rotation of 180 deg in the Z axis
-
-% Viewing angles for the 3D plot
-view_1 = 110; % 110 deg
-view_2 = 29;  % 29 deg
+if rotation_z
+    thd0_z = -180*pi/180; % Rotation of 180 deg in the Z axis
+else
+    thd0_z = 0*pi/180;
+end
 
 %% Definition of the initial configuration
 % We define the initial configuration
@@ -177,6 +217,7 @@ Rd0 = eul2rotm([thd0_x thd0_y thd0_z], 'XYZ');
 Rd0 = kron(eye(N), Rd0);
 pd = (sd0 * Rd0 * c);
 
+%% Desired Set-Up of the agents
 % Target formation scale and rotation. Since we have already rotated and scaled
 % pd when we defined it above, then we can select sd = 1 and thd = 0.
 sd = 1;
@@ -194,90 +235,93 @@ c = K * PT; % (3*Na x 1)
 
 %% Waypoints definition
 
-num_waypoint = 1;
-
-% First waypoint
-g1 = g0 + [0, -1.3, 0.6]'; % Waypoint centroid (3x1)
-s1 = 1;                                         
-th1_x = 0*pi/180;
-th1_y = -30*pi/180;
-th1_z = 0*pi/180;
-R1 = eul2rotm([th1_x th1_y th1_z], 'XYZ');  
-R1 = kron(eye(N), R1);                         
-c1 = (s1 * R1 * p00); % Waypoint Agents' positions (3*Na x 1)
-
-% Second waypoint
-g2 = g0 + [-1.35, -2.55, 1.1]'; %  Waypoint centroid (3x1)
-s2 = 1;                                         
-th2_x = -45*pi/180;
-th2_y = 0*pi/180;
-th2_z = -90*pi/180;
-R2 = eul2rotm([th2_x th2_y th2_z], 'XYZ');  
-R2 = kron(eye(N), R2);                         
-c2 = (s2 * R2 * p00); % Waypoint Agents' positions (3*Na x 1)
-
-% Third waypoint
-g3 = g0 + [-2.7, -1.3, 0.6]'; %  Waypoint centroid (3x1)
-s3 = 1;                                         
-th3_x = 0*pi/180;
-th3_y = 30*pi/180;
-th3_z = -180*pi/180;
-R3 = eul2rotm([th3_x th3_y th3_z], 'XYZ');  
-R3 = kron(eye(N), R3);                         
-c3 = (s3 * R3 * p00); % Waypoint Agents' positions (3*Na x 1)
-
-waypoints_g = [g1 g2 g3 gd]; % Waypoint centroids (3xNwaypoints)
-waypoints_c = [c1 c2 c3 c]; % Waypoints Agents' positions (3*Na x Nwaypoints)
-
-gd = waypoints_g(:, num_waypoint); % Current desired waypoint centroid (3x1)
-c = waypoints_c(:, num_waypoint); % Current desired Agents' positions (3*Na x 1)
-
+if waypoints
+    num_waypoint = 1;
+    
+    % First waypoint
+    g1 = g0 + [0, -1.3, 0.6]'; % Waypoint centroid (3x1)
+    s1 = 1;                                         
+    th1_x = 0*pi/180;
+    th1_y = -30*pi/180;
+    th1_z = 0*pi/180;
+    R1 = eul2rotm([th1_x th1_y th1_z], 'XYZ');  
+    R1 = kron(eye(N), R1);                         
+    c1 = (s1 * R1 * p00); % Waypoint Agents' positions (3*Na x 1)
+    
+    % Second waypoint
+    g2 = g0 + [-1.35, -2.55, 1.1]'; %  Waypoint centroid (3x1)
+    s2 = 1;                                         
+    th2_x = -45*pi/180;
+    th2_y = 0*pi/180;
+    th2_z = -90*pi/180;
+    R2 = eul2rotm([th2_x th2_y th2_z], 'XYZ');  
+    R2 = kron(eye(N), R2);                         
+    c2 = (s2 * R2 * p00); % Waypoint Agents' positions (3*Na x 1)
+    
+    % Third waypoint
+    g3 = g0 + [-2.7, -1.3, 0.6]'; %  Waypoint centroid (3x1)
+    s3 = 1;                                         
+    th3_x = 0*pi/180;
+    th3_y = 30*pi/180;
+    th3_z = -180*pi/180;
+    R3 = eul2rotm([th3_x th3_y th3_z], 'XYZ');  
+    R3 = kron(eye(N), R3);                         
+    c3 = (s3 * R3 * p00); % Waypoint Agents' positions (3*Na x 1)
+    
+    waypoints_g = [g1 g2 g3 gd]; % Waypoint centroids (3xNwaypoints)
+    waypoints_c = [c1 c2 c3 c]; % Waypoints Agents' positions (3*Na x Nwaypoints)
+    
+    gd = waypoints_g(:, num_waypoint); % Current desired waypoint centroid (3x1)
+    c = waypoints_c(:, num_waypoint); % Current desired Agents' positions (3*Na x 1)
+end
 
 %% Obtacles definition
-% Internal wall
-r1 = 0.2;   
-initial_point1 = g0 + [-1.35+r1; 1.5; -0.15];
-second_point1 = g0 + [-1.35+r1; -1.2; -0.15];
-third_point1 = g0 + [-1.35-r1; -1.2; -0.15];
-final_point1 = g0 + [-1.35-r1; 1.5; -0.15];
-points = initial_point1;
-obstacles = [];
-
-while points(2) > second_point1(2)
-    obstacles = [obstacles, points];
-    points(2) = points(2) - 0.1;
-end
-
-obstacles = [obstacles, points, second_point1];
-
-for th1 = pi:pi/5:2*pi
-    points(2) = r1 * sin(th1) + g0(2) - 1.2;
-    points(1) = -r1 * cos(th1) + g0(1) - 1.35;
-    obstacles = [obstacles, points];
-end
-
-obstacles1 = [obstacles, third_point1, final_point1];
-
-% External wall
-r2 = 2.5;   
-initial_point2 = g0 + [-1.35+r2; -1.2; -0.15];
-final_point2 = g0 + [-1.35-r2; -1.2; -0.15];
-points = initial_point2;
-obstacles = g0 + [-1.35+r2; 1.5; -0.15];
-
-for th2 = 2*pi:-pi/10:pi
-    obstacles = [obstacles, points];
-    points(2) = r2 * sin(th2) + g0(2) - 1.2;
-    points(1) = r2 * cos(th2) + g0(1) - 1.35;               
-end
-
-obstacles2 = [obstacles, final_point2, g0 + [-1.35-r2; 1.5; -0.15]];
-            
+if having_obstacles
+    % Internal wall
+    r1 = 0.2;   
+    initial_point1 = g0 + [-1.35+r1; 1.5; -0.15];
+    second_point1 = g0 + [-1.35+r1; -1.2; -0.15];
+    third_point1 = g0 + [-1.35-r1; -1.2; -0.15];
+    final_point1 = g0 + [-1.35-r1; 1.5; -0.15];
+    points = initial_point1;
+    obstacles = [];
+    
+    while points(2) > second_point1(2)
+        obstacles = [obstacles, points];
+        points(2) = points(2) - 0.1;
+    end
+    
+    obstacles = [obstacles, points, second_point1];
+    
+    for th1 = pi:pi/5:2*pi
+        points(2) = r1 * sin(th1) + g0(2) - 1.2;
+        points(1) = -r1 * cos(th1) + g0(1) - 1.35;
+        obstacles = [obstacles, points];
+    end
+    
+    obstacles1 = [obstacles, third_point1, final_point1];
+    
+    % External wall
+    r2 = 2.5;   
+    initial_point2 = g0 + [-1.35+r2; -1.2; -0.15];
+    final_point2 = g0 + [-1.35-r2; -1.2; -0.15];
+    points = initial_point2;
+    obstacles = g0 + [-1.35+r2; 1.5; -0.15];
+    
+    for th2 = 2*pi:-pi/10:pi
+        obstacles = [obstacles, points];
+        points(2) = r2 * sin(th2) + g0(2) - 1.2;
+        points(1) = r2 * cos(th2) + g0(1) - 1.35;               
+    end
+    
+    obstacles2 = [obstacles, final_point2, g0 + [-1.35-r2; 1.5; -0.15]];
+end          
 
 %% Initial conditions of the simulation and required simulation parameters
 
 % Initial positions of the robots
 p = p0;         % p matrix 3Nx1
+p_cbf = p0;     % p_cbf matrix 3Nx1
 
 % Velocity limit value
 u_sat = 1.5;    % m/s
@@ -296,24 +340,47 @@ cbf_alpha = 1;   % for controlling the risks taken by the barrier function
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Each of the following will be a growing array that will store the values of variables at each iteration
-ps = [];        % positions
-ps_msm = [];    % position to use in msm code
-gammas_H = [];  % cost relative to shape-preserving transformation
-gammas_G = [];  % cost relative to configuration consistent with our deformation modes
-hs = [];        % parameters of the optimal shape-preserving transformation
-egs = [];       % centroid errors
-ess = [];       % scale errors
-eths = [];      % rotation eror
-eth_xs = [];    % x angle errors
-eth_ys = [];    % y angle errors
-eth_zs = [];    % z angle errors
-dx_unis = [];   % unicycle velocities
-vs = [];        % linear velocities
-nvs = [];       % linear velocities norm
+ps = [];                % positions
+gammas_H = [];          % cost relative to shape-preserving transformation
+gammas_G = [];          % cost relative to configuration consistent with our deformation modes
+hs = [];                % parameters of the optimal shape-preserving transformation
+egs = [];               % centroid errors
+ess = [];               % scale errors
+eths = [];              % rotation eror
+eth_xs = [];            % x angle errors
+eth_ys = [];            % y angle errors
+eth_zs = [];            % z angle errors
+dx_unis = [];           % unicycle velocities
+vs = [];                % linear velocities
+nvs = [];               % linear velocities norm
+vm_stresses = [];       % von Mises stresses
+tensor_stresses = [];   % stress tensors
+u_Hs = [];              % shape-preserving control (UH)
+u_Gs = [];              % Deformation Control (UG)
+U_ss = [];              % Scale Control (US)
+u_cs = [];              % Position Control (Uc)
+U_Hds = [];             % Scale and Orientation Control (UHd)
+u_cbfs = [];            % Control Barrier Functions
+us = [];                % Final Control Outputs (U_f)
+
+% CBF
+ps_cbf = [];            % positions with the barrier function
+nvs_cbf = [];           % linear velocities norm CBF
+vs_cbf = [];            % linear velocities
+As = [];                % Left side of the optimization condition
+bs = [];                % Right side of the optimization condition
+gammas_H_cbf = [];      % cost relative to shape-preserving transformation
+gammas_G_cbf = [];      % cost relative to configuration consistent with our deformation modes
+egs_cbf = [];           % centroid errors
+ess_cbf = [];           % scale errors
+eths_cbf = [];          % rotation eror
+eth_xs_cbf = [];        % x angle errors
+eth_ys_cbf = [];        % y angle errors
+eth_zs_cbf = [];        % z angle errors
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% For creating the video:
+%% For creating the video:
 ind_im = 1;     % index of images (used for creation of video)
 fps = 20;       % frames per second for the video
 % Create figure from which we will create the video frames
@@ -329,26 +396,20 @@ color_robots = ["#D80909", "#414FD7", "#179115", "#EE0DC8", "#CF7F04", "#727272"
 color_graphs = ["#0073bd", "#77a5c3", "#d9541a", "#edb120", "#7e2f8e"];
 
 % Limits
-x_limit = [-3.1 1.9];
-y_limit = [-3.1 1.45];
-z_limit = [0 3];
+if having_obstacles
+    x_limit = [-3.1 1.9];
+    y_limit = [-3.1 1.45];
+    z_limit = [0 3];
+else
+    x_limit = [-4 2];
+    y_limit = [-1 4];
+    z_limit = [0 3];
+end
 
 zoom_factor = 1.25;  % greater than 1 means zoom out
 x_limit = x_limit * zoom_factor;
 y_limit = y_limit* zoom_factor;
 z_limit = z_limit * zoom_factor;
-
-figure
-set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
-hold on
-box on
-
-view(view_1, view_2) % view angle
-
-xlim(x_limit) % to define the bounds of the plot properly
-ylim(y_limit)
-zlim(z_limit)
-daspect([1 1 1]) % to have same plotted size of units in x and y
 
 % Create animation (Considering only 2 layers of Agents)
 pairs = [];
@@ -366,28 +427,31 @@ end
 pairs = [pairs; [1 7]; [2 8]; [3 5]; [4 6]];
 %%%
 
-for i = 1:size(pairs,1)
-    object_lines(i) = plot3([p(3*pairs(i,1)-2), p(3*pairs(i,2)-2)], [p(3*pairs(i,1)-1), p(3*pairs(i,2)-1)], [p(3*pairs(i,1)), p(3*pairs(i,2))], 'k-', 'linewidth', 0.5);
+if having_obstacles
+    for i = 1:size(pairs,1)
+        object_lines(i) = plot3([p(3*pairs(i,1)-2), p(3*pairs(i,2)-2)], [p(3*pairs(i,1)-1), p(3*pairs(i,2)-1)], [p(3*pairs(i,1)), p(3*pairs(i,2))], 'k-', 'linewidth', 0.5);
+    end
+    
+    % Obtacles plotting
+    for i = 0:50
+        plot3(obstacles1(1,:), obstacles1(2,:), obstacles1(3,:) + i*0.02, 'k-', 'LineWidth', 2);
+    end
+    for i = 0:10
+        plot3(obstacles2(1,:), obstacles2(2,:), obstacles2(3,:) + i*0.02, 'k-', 'LineWidth', 2);
+    end
 end
 
-% Obtacles plotting
-for i = 0:50
-    plot3(obstacles1(1,:), obstacles1(2,:), obstacles1(3,:) + i*0.02, 'k-', 'LineWidth', 2);
+if waypoints
+    % Initial, target and current positions
+    for i = 1:N
+        plot3(p0(3*i-2,1), p0(3*i-1,1), p0(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 15);
+        plot3(PT(3*i-2,1), PT(3*i-1,1), PT(3*i,1), 'o', 'color', color_robots(i), 'MarkerSize', 7, 'LineWidth', 1.5);
+        robot_tr(i) = plot3(p(3*i-2,1), p(3*i-1,1), p(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 30);
+    end
+    plot3(g0(1,:), g0(2,:), g0(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
+    % plot3(gd(1,:), gd(2,:), gd(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
+    plot3(waypoints_g(1,:), waypoints_g(2,:), waypoints_g(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
 end
-for i = 0:10
-    plot3(obstacles2(1,:), obstacles2(2,:), obstacles2(3,:) + i*0.02, 'k-', 'LineWidth', 2);
-end
-
-% Initial, target and current positions
-for i = 1:N
-    plot3(p0(3*i-2,1), p0(3*i-1,1), p0(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 15);
-    plot3(PT(3*i-2,1), PT(3*i-1,1), PT(3*i,1), 'o', 'color', color_robots(i), 'MarkerSize', 7, 'LineWidth', 1.5);
-    robot_tr(i) = plot3(p(3*i-2,1), p(3*i-1,1), p(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 30);
-end
-plot3(g0(1,:), g0(2,:), g0(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
-% plot3(gd(1,:), gd(2,:), gd(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
-plot3(waypoints_g(1,:), waypoints_g(2,:), waypoints_g(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
-
 
 
 %% Object Simulation
@@ -428,10 +492,7 @@ for it_loop = 1:niters
 
     % Store current positions
     ps = [ps, p]; % (3*Na x N_iters)
-    
-    % Only when using msm code
-    p_msm = reshape(p, [3,N]);
-    ps_msm = [ps_msm, p_msm'];
+    ps_cbf = [ps_cbf, p_cbf]; % (3*Na x N_iters)
     
     % Current formation centroid
     g = (1/N) * [sum(p(1:3:end)); sum(p(2:3:end)); sum(p(3:3:end))]; % (3x1)
@@ -439,7 +500,7 @@ for it_loop = 1:niters
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     % For rotating the view
-    if (it_loop > 25) && (it_loop < 550)
+    if (it_loop > 25) && (it_loop < 550) && having_obstacles
         view(view_1-(it_loop-25)*0.5, view_2)
     end
     
@@ -470,11 +531,14 @@ for it_loop = 1:niters
     end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    if num_waypoint < size(waypoints_g,2)
-        if norm(gd - g) < 0.2
-            num_waypoint = num_waypoint + 1;
-            gd = waypoints_g(:, num_waypoint);
-            c = waypoints_c(:, num_waypoint);
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    if waypoints
+        if num_waypoint < size(waypoints_g,2)
+            if norm(gd - g) < 0.2
+                num_waypoint = num_waypoint + 1;
+                gd = waypoints_g(:, num_waypoint);
+                c = waypoints_c(:, num_waypoint);
+            end
         end
     end
 
@@ -484,8 +548,9 @@ for it_loop = 1:niters
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% Control Algorithm
 
-    [u, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual, vm_stress, stress_tensor] = ForceControl3D_Debug(Pob0', Pob', reshape(p, [ndims,N]), agent_destinations, omesh.elements, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
-    
+    [~, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual, vm_stress, stress_tensor] = ForceControl3D_Debug(Pob0', Pob', reshape(p, [ndims,N]), agent_destinations, omesh.elements, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
+    [u, U_f, U_H, u_G, U_s, u_c, U_Hd, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual] = TransportationControl3D_Debug(reshape(p, [ndims,N]), agent_destinations, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
+
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% Errors
 
@@ -501,8 +566,16 @@ for it_loop = 1:niters
     eth_zs = [eth_zs; eth_individual(3)];
 
     % Store the stress values
-    vm_stresses = [vm_stress; vm_stress];
+    vm_stresses = [vm_stresses, vm_stress];
     tensor_stresses = cat(3, tensor_stresses, stress_tensor);
+
+    u_Hs = cat(3, u_Hs, U_H);              % shape-preserving control (UH)
+    u_Gs = cat(3, u_Gs, reshape(u_G,[3,8]));              % Deformation Control (UG)
+    U_ss = cat(3, U_ss, U_s);              % Scale Control (US)
+    u_cs = cat(3, u_cs, reshape(u_c,[3,8]));              % Position Control (Uc)
+    U_Hds = cat(3, U_Hds, U_Hd);             % Scale and Orientation Control (UHd)
+    u_cbfs = cat(3, u_cbfs, reshape(u_cbf,[3,8]));            % Control Barrier Functions
+    us = cat(3, us, reshape(u,[3,8]))
     
     %%%%%%%%%%%%%%%%%%%%%%% 
     
@@ -535,7 +608,7 @@ for it_loop = 1:niters
         end
     end
     
-    pause(0.005) % we give some time for the user to visualize the created plot
+    % pause(0.005) % we give some time for the user to visualize the created plot
  
 end
 
@@ -554,3 +627,17 @@ if make_video == 1
     create_video(folder_result, v_name, 'robots_object_', floor(ind_im), fps, 1, 2)
 end
 
+%% Plot control outputs
+plot_control_outputs;
+
+%% Plot stresses
+figure;
+
+plot(max(vm_stresses),'Color','b','DisplayName', "currStress");
+hold on;
+plot(repelem(yield_stress/SF,size(vm_stresses,2)),'Color', 'r', 'DisplayName', "maxStress");
+hold off;
+title("Von Mises Stress Comp");
+legend("show");
+xlabel("Iters");
+ylabel("Pa");

@@ -12,13 +12,16 @@ hold on
 view(view_1, view_2)
 
 % Obtacles plotting
-for i = 0:50
-    plot3(obstacles1(1,:), obstacles1(2,:), obstacles1(3,:) + i*0.02, '-', 'color', "#b0aaa4", 'LineWidth', 2, 'HandleVisibility', 'off');
+if exist('obstacles1', 'var')
+    for i = 0:50
+        plot3(obstacles1(1,:), obstacles1(2,:), obstacles1(3,:) + i*0.02, '-', 'color', "#b0aaa4", 'LineWidth', 2, 'HandleVisibility', 'off');
+    end
 end
-for i = 0:10
-    plot3(obstacles2(1,:), obstacles2(2,:), obstacles2(3,:) + i*0.02, '-', 'color', "#b0aaa4", 'LineWidth', 2, 'HandleVisibility', 'off');
+if exist('obstacles2', 'var')
+    for i = 0:10
+        plot3(obstacles2(1,:), obstacles2(2,:), obstacles2(3,:) + i*0.02, '-', 'color', "#b0aaa4", 'LineWidth', 2, 'HandleVisibility', 'off');
+    end
 end
-
 % Initial positions and centroid
 plot3(p0(1:3:end), p0(2:3:end), p0(3:3:end), 'o', 'markersize', 8, 'color', [0.5 0.5 0.8], 'markerfacecolor', [0.5 0.5 0.8], 'DisplayName', 'Posiciones iniciales')
 plot3(g0(1,:), g0(2,:), g0(3,:), '+', 'markersize', 5, 'color', [0.5 0.5 0.8], 'markerfacecolor', [0.5 0.5 0.8], 'linewidth', 1.2, 'HandleVisibility', 'off')

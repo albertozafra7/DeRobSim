@@ -25,7 +25,7 @@
 % Author: Alberto Zafra Navarro, January 2025
 
 % function [v, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual] = ForceControl3D_Debug(vert_origins, vert_positions, vert_prevpositions, agent_positions, agent_destinations, meshTetrahedrons, prev_stressTensor, E, nu, yield_stress, SF, kCBF, katt, krep, cbf_alpha, kH, kG, ks, kg, kth, sd, thd, vsat)
-function [v, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual, curr_vmSigma, curr_SigmaTensor] = ForceControl3D_Debug(vert_origins, vert_positions, agent_positions, agent_destinations, meshTetrahedrons, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, kH, kG, ks, kg, kth, sd, thd, vsat)
+function [v, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual, curr_vmSigma, curr_SigmaTensor, A, b] = ForceControl3D_Debug(vert_origins, vert_positions, agent_positions, agent_destinations, meshTetrahedrons, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, kH, kG, ks, kg, kth, sd, thd, vsat)
 
     % ++++++++++ Optional parameters evaluation ++++++++++
 
@@ -253,16 +253,18 @@ function [v, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destin
     %%%%%%%%%%%%%%%%%%%%%%% 
 
     % -- Barrier Functions (Ucbf) --
-    % U_cbf = kCBF * stressControlWithBarrier(vert_positions, vert_prevpositions, ...
-    %                         agent_positions, agent_destinations, u, curr_SigmaTensor, curr_vmSigma, ...
-    %                         prev_stressTensor, yield_stress, SF, cbf_alpha, katt, krep);
-    U_cbf = kCBF * stressControlWithBarrier(3, u, curr_SigmaTensor, curr_vmSigma, ...
+    % U_cbf = kCBF * stressControlWithBarrier(u, curr_SigmaTensor, curr_vmSigma, ...
+    %                         meshTetrahedrons, yield_stress, SF, cbf_alpha, Ce, Le, J);
+
+    [cbf_u, A, b] = stressControlWithBarrier(u, curr_SigmaTensor, curr_vmSigma, ...
                             meshTetrahedrons, yield_stress, SF, cbf_alpha, Ce, Le, J);
+
+    U_cbf = kCBF * cbf_u;
 
 
     u_cbf = reshape(U_cbf, [3*N,1]);
 
-    u = u_cbf;
+    % u = u_cbf;
 
     %%%%%%%%%%%%%%%%%%%%%%% 
 
@@ -564,7 +566,7 @@ end
 %                             AgentsPose, AgentGoals, AgentActions, curr_StressTensor, curr_vmStress, ...
 %                             prev_StressTensor, YieldStress, SF, alpha, Katt, Krep)
 
-function [AgentsVels] = stressControlWithBarrier(ndim, AgentActions, curr_StressTensor, curr_vmStress, ...
+function [AgentsVels, A, b] = stressControlWithBarrier(AgentActions, curr_StressTensor, curr_vmStress, ...
                             meshTetrahedrons, YieldStress, SF, alpha, Ce, Be, J)
 % stressControlWithBarrier
 % This function simulates a control system where agents move towards goals while avoiding high-stress regions.
@@ -619,8 +621,9 @@ function [AgentsVels] = stressControlWithBarrier(ndim, AgentActions, curr_Stress
     % Define QP problem
     H = 2 * eye(length(AgentActions));  % Quadratic cost for velocity
     f = -2 * AgentActions;              % Linear term for desired velocity
-    A = grad_h;                         % Gradient of barrier function
+    A = - grad_h;                       % Gradient of barrier function
     b = alpha * h;                      % Barrier constraint
+    % b = - alpha * h; ---> This was before!!!!
 
     % Solve QP for velocity
     AgentsVels = quadprog(H, f, A, b, [], [], [], [], [], options);
@@ -647,7 +650,7 @@ function [AgentsVels] = stressControlWithBarrier(ndim, AgentActions, curr_Stress
     % end
     
     tEnd = toc(tStart);
-    fprintf("Computation completed after %f seconds.\n", tEnd);
+    % fprintf("Computation completed after %f seconds.\n", tEnd);
 end
 
 

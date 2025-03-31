@@ -1,6 +1,6 @@
 %% Generate a cube and generate tetrahedrons
 d = [-1 1];
-[x,y,z] = meshgrid(d,d,d);  % A cub
+[x,y,z] = meshgrid(d,d,d);  % A cube
 x = [x(:); 0];
 y = [y(:); 0];
 z = [z(:); 0];

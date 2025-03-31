@@ -3,7 +3,8 @@
 % +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 % Load the data
-load('.\Experiments\Forces\MatlabInteractiveTests\JacobianTests.mat');
+% load('.\Experiments\Forces\MatlabInteractiveTests\JacobianTests.mat');
+load('.\Experiments\Forces\MatlabInteractiveTests\JacobianUnitaryCube.mat');
 
 % b = J*A
 
@@ -37,12 +38,39 @@ end
 
 
 % J = (A' * A)^-1 * A' * b
-Jvect = (A' * A)^-1 * A' * b;
+
+% We try to compute the pseudo-inverse of A to compute the Jacobian
+try
+    % Fastest way
+    Jvect = lsqminnorm(A,b);
+catch
+    % If not possible we try the traditional way
+    invA = (A' * A)^-1 * A'; % It can result on a NaN value
+
+    if any(isnan(invA(:)))
+
+        try % We try the Moore-Penrose pseudo-inverse way
+            invA = pinv(A);
+            Jvect = invA * b;
+
+        % If we run out of memory
+        catch
+            error("Not possible to generate the inverse of A");
+        end
+    
+    % If invA has not NaN values we can compute the jacobian normally
+    else
+        Jvect = invA * b;
+    end
+
+end
+
+
 
 J = reshape(Jvect, [N,Na]);
 
 % save('.\Experiments\Forces\MatlabInteractiveTests\JacobianTests.mat',"J", "-append");
-
+% save('.\Experiments\Forces\MatlabInteractiveTests\JacobianUnitaryCube.mat',"J", "-append");
 
 %% ***** Tests *****
 % Testing the first experiment
