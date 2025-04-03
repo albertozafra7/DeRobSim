@@ -720,14 +720,16 @@ end
 if plotCBFDifferences
     figure;
     
-    plot(As','Color','b','DisplayName','A');
-    hold on;
-    plot(bs', 'Color', 'r', 'DisplayName', 'b');
+    for a = 1:N
+        plot(As(a,:),'Color', color_robots(a),'DisplayName',strcat('A x u_',num2str(a)), 'LineStyle','-');
+        hold on;
+        plot(bs(a,:), 'Color', color_robots(a), 'DisplayName', strcat('b agent_',num2str(a)), 'LineStyle','--');
+    end
     hold off;
-    title("A <= b");
+    title("A x u_c_b_f <= b");
     xlabel("Iters");
-    ylabel("Pa");
-    legend(["A","","","","b"]);
+    ylabel("unitless");
+    legend show;
 end
 
 %% Plot velocities

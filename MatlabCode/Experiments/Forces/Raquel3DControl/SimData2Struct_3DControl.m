@@ -14,6 +14,10 @@ if exist('obstacles2', 'var')
     data_standard.obstacles2 = obstacles2;
 end
 
+if exist('obstacles', 'var')
+    data_standard.obstacles = obstacles;
+end
+
 % Positions
 data_standard.p0 = p0; % Initial positions of the agents (3*N_agents x 1)
 data_standard.g0 = g0; % Initial centroid position (3 x 1)

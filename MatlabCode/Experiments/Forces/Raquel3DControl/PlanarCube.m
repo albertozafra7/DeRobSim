@@ -7,16 +7,21 @@ clc;
 % Trajectory config
 waypoints = false;
 rotation_z = false;
+obstacle_avoidance = true;
 moveNdim = 3; % 1 -> Movement in X; 2 -> Movement in X and Y; 3 -> Movement in 3D
 
 % If we want to use the Control Barrier Functions
-forceCBF = true;
+forceCBF = false;
 
 % If we want to plot the control results
+plotLiveCBF = false;
 plotCResults = false;
 plotCResultsCBF = true;
 plotCBFDifferences = true;
+plotCBFParams = true;
 plotControlOutputs = false;
+plotCBFVelCorr = true;
+plotCBFVelDiff = true;
 plotVelComp = true;
 plotStresses = false;
 
@@ -32,7 +37,13 @@ T = kron(eye(N),S);
 
 % Time parameters - The simulated time in seconds will be nit*dt
 dt = 0.01;      % time step of the simulation
-niters = 700;%1600;  % number of iterations of the control loop
+if waypoints
+    niters = 1600;
+elseif obstacle_avoidance
+    niters = 1200;
+else
+    niters = 700;%1600;  % number of iterations of the control loop
+end
 
 % Physical parameters
 E = 3000; % Young Modulus (Pa)
@@ -162,6 +173,20 @@ if waypoints
     c = waypoints_c(:, num_waypoint); % Current desired Agents' positions (3*Na x 1)
 end
 
+%% Objects definition
+if obstacle_avoidance
+    switch moveNdim
+        case 1
+            obstacles.center = [-1, 0.5, 0];
+        case 2
+            obstacles.center = [-1, 1.5, 0];
+        otherwise
+            obstacles.center = [-1, 1.5, 0.5];
+    end
+
+    obstacles.radius = 0.25;
+    obstacles.color = '#ff0000';
+end
 
 %% Initial conditions of the simulation and required simulation parameters
 
@@ -175,13 +200,13 @@ u_sat = 1.5;    % m/s
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Gain values for the control
-k_H = 50;        % for moving toward shape-preserving transformation
-k_G = 5;         % for moving toward a configuration consistent with our deformation modes
-k_c = 1;         % for centroid translation
-k_s = 50;        % for scaling
-k_Hd = 1.5;      % for scaling and orientation
-kCBF = 2;        % for controllig the stress avoidance influence
-cbf_alpha = 1;   % for controlling the risks taken by the barrier function
+k_H = 50;         % for moving toward shape-preserving transformation
+k_G = 5;          % for moving toward a configuration consistent with our deformation modes
+k_c = 1;          % for centroid translation
+k_s = 50;         % for scaling
+k_Hd = 1.5;       % for scaling and orientation
+kCBF = 2;         % for controllig the stress avoidance influence
+cbf_alpha = 0.15; % for controlling the risks taken by the barrier function
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -211,6 +236,8 @@ us = [];                % Final Control Outputs (U_f)
 
 % CBF
 ps_cbf = [];            % positions with the barrier function
+prop_nvs_cbf = [];      % desired linear velocities norm CBF (Before the CBF)
+prop_vs_cbf = [];       % desired linear velocities (Befor the CBF)
 nvs_cbf = [];           % linear velocities norm CBF
 vs_cbf = [];            % linear velocities
 As = [];                % Left side of the optimization condition
@@ -223,6 +250,14 @@ eths_cbf = [];          % rotation eror
 eth_xs_cbf = [];        % x angle errors
 eth_ys_cbf = [];        % y angle errors
 eth_zs_cbf = [];        % z angle errors
+grads_hs = [];          % gradients of the h function of the cbf
+opt_hs = [];            % record of the h function of the cbf
+
+% Object avoidance
+if obstacle_avoidance
+    Agent2Obst_dists = [];  % distance from agents to obstacles (1xN)
+    grad_Agent2Obst = [];   % gradient of the distances from agents to obstacles (3xN)
+end
 
 
 
@@ -233,25 +268,40 @@ color_robots = ["#D80909", "#414FD7", "#179115", "#EE0DC8", "#CF7F04", "#727272"
 color_graphs = ["#0073bd", "#77a5c3", "#d9541a", "#edb120", "#7e2f8e"];
 
 % Limits
-x_limit = [-4 2];
-y_limit = [-1 4];
-z_limit = [0 3];
+if waypoints
+    x_limit = [-4 1];
+    y_limit = [-3 1];
+    z_limit = [-1 2];
+else
+    x_limit = [-4 2];
+    y_limit = [-1 4];
+    z_limit = [0 3];
+    zoom_factor = 1.25;  % greater than 1 means zoom out
+    x_limit = x_limit * zoom_factor;
+    y_limit = y_limit* zoom_factor;
+    z_limit = z_limit * zoom_factor;
+end
 
-zoom_factor = 1.25;  % greater than 1 means zoom out
-x_limit = x_limit * zoom_factor;
-y_limit = y_limit* zoom_factor;
-z_limit = z_limit * zoom_factor;
-
-% figure
-% set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
-% hold on
-% box on
-% 
-% 
-% xlim(x_limit) % to define the bounds of the plot properly
-% ylim(y_limit)
-% zlim(z_limit)
-% daspect([1 1 1]) % to have same plotted size of units in x and y
+if plotLiveCBF
+    figure
+    set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    hold on
+    box on
+    
+    if moveNdim == 3
+        xlim(x_limit/zoom_factor) % to define the bounds of the plot properly
+        ylim(y_limit/zoom_factor)
+        zlim([-0.5 2])
+        daspect([1 1 1]) % to have same plotted size of units in x and y
+        view(5.1317,25.1351);
+        grid on;
+    else
+        xlim(x_limit) % to define the bounds of the plot properly
+        ylim(y_limit)
+        zlim(z_limit)
+        daspect([1 1 1]) % to have same plotted size of units in x and y
+    end
+end
 
 % Create animation (Considering only 2 layers of Agents)
 pairs = [];
@@ -272,19 +322,35 @@ pairs = [pairs; [1 4]; [2 3]];
 %     object_lines(i) = plot3([p(3*pairs(i,1)-2), p(3*pairs(i,2)-2)], [p(3*pairs(i,1)-1), p(3*pairs(i,2)-1)], [p(3*pairs(i,1)), p(3*pairs(i,2))], 'k-', 'linewidth', 0.5);
 % end
 
-
-% % Initial, target and current positions
-% for i = 1:N
-%     plot3(p0(3*i-2,1), p0(3*i-1,1), p0(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 15);
-%     plot3(PT(3*i-2,1), PT(3*i-1,1), PT(3*i,1), 'o', 'color', color_robots(i), 'MarkerSize', 7, 'LineWidth', 1.5);
-%     robot_tr(i) = plot3(p(3*i-2,1), p(3*i-1,1), p(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 30);
-% end
-% plot3(g0(1,:), g0(2,:), g0(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
-% % plot3(gd(1,:), gd(2,:), gd(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
-% if waypoints
-%     plot3(waypoints_g(1,:), waypoints_g(2,:), waypoints_g(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
-% end
-
+if plotLiveCBF
+    % Initial, target and current positions
+    for i = 1:N
+        plot3(p0(3*i-2,1), p0(3*i-1,1), p0(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 15);
+        plot3(PT(3*i-2,1), PT(3*i-1,1), PT(3*i,1), 'o', 'color', color_robots(i), 'MarkerSize', 7, 'LineWidth', 1.5);
+        robot_tr(i) = plot3(p(3*i-2,1), p(3*i-1,1), p(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 30);
+    end
+    % Lines between robots
+    for i = 1:size(pairs,1)
+        plot3([p0(3*pairs(i,1)-2), p0(3*pairs(i,2)-2)], [p0(3*pairs(i,1)-1), p0(3*pairs(i,2)-1)], [p0(3*pairs(i,1)), p0(3*pairs(i,2))], '--', 'color', [0.5 0.5 0.8], 'linewidth', 1.5, 'HandleVisibility', 'off');
+        plot3([PT(3*pairs(i,1)-2), PT(3*pairs(i,2)-2)], [PT(3*pairs(i,1)-1), PT(3*pairs(i,2)-1)], [PT(3*pairs(i,1)), PT(3*pairs(i,2))], '--', 'color', [0.8 0.5 0.5], 'linewidth', 1.5, 'HandleVisibility', 'off');
+        robot_lines(i) = plot3([p(3*pairs(i,1)-2), p(3*pairs(i,2)-2)], [p(3*pairs(i,1)-1), p(3*pairs(i,2)-1)], [p(3*pairs(i,1)), p(3*pairs(i,2))], '--', 'color', [0.5 0.8 0.5], 'linewidth', 1.5, 'HandleVisibility', 'off');
+    end
+    plot3(g0(1,:), g0(2,:), g0(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
+    % plot3(gd(1,:), gd(2,:), gd(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
+    if waypoints
+        plot3(waypoints_g(1,:), waypoints_g(2,:), waypoints_g(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
+    end
+    if obstacle_avoidance
+        for o = 1:length(obstacles)
+            obs = obstacles(o);
+            [X,Y,Z] = sphere;
+            X2 = X * obs.radius;
+            Y2 = Y * obs.radius;
+            Z2 = Z * obs.radius;
+            surf(X2 + obs.center(1),Y2 + obs.center(2),Z2 + obs.center(3),FaceColor=[0.2,0.2,0.2],FaceAlpha=0.3);
+        end
+    end
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -299,12 +365,24 @@ for it_loop = 1:niters
     % Current formation centroid
     g = (1/N) * [sum(p(1:3:end)); sum(p(2:3:end)); sum(p(3:3:end))]; % (3x1)
 
-    % Plot the robots in their current position in each iteration
-    % for i = 1:N
-    %     robot_tr(i).XData = p(3*i-2,1);
-    %     robot_tr(i).YData = p(3*i-1,1);
-    %     robot_tr(i).ZData = p(3*i,1);
-    % end
+    if plotLiveCBF
+        try
+            % Plot the robots in their current position in each iteration
+            for i = 1:N
+                robot_tr(i).XData = p_cbf(3*i-2,1);
+                robot_tr(i).YData = p_cbf(3*i-1,1);
+                robot_tr(i).ZData = p_cbf(3*i,1);
+            end
+            for i = 1:size(pairs,1)
+                robot_lines(i).XData = [p_cbf(3*pairs(i,1)-2), p_cbf(3*pairs(i,2)-2)];
+                robot_lines(i).YData = [p_cbf(3*pairs(i,1)-1), p_cbf(3*pairs(i,2)-1)];
+                robot_lines(i).ZData = [p_cbf(3*pairs(i,1)), p_cbf(3*pairs(i,2))];
+            end
+        catch
+            disp("Live Window Closed");
+            plotLiveCBF = false;
+        end
+    end
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     if waypoints
@@ -324,25 +402,64 @@ for it_loop = 1:niters
 
     [u, U_f, U_H, u_G, U_s, u_c, U_Hd, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual] = TransportationControl3D_Debug(reshape(p, [ndims,N]), agent_destinations, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
     
-
+    if obstacle_avoidance
+        [u_obst, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~] = TransportationControl3D_Debug(reshape(p_cbf, [ndims,N]), agent_destinations, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
+    end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% CBF
 
-    % Compute the MaxStress
-    MaxStress = yield_stress/SF;
+    if obstacle_avoidance
+        H = 2 * eye(3*N);
+        f = -2 * u_obst(:);
 
-    H = 2 * eye(3*N);
-    f = -2 * u(:);
+        dist2obsts = zeros(length(N),1);
+        grad_dist2obst = zeros(length(N),3);
+        agent_cbf_pos = reshape(p_cbf, [ndims,N]);
+        for o = 1:length(obstacles)
+            for a = 1:N
+                dist2obsts(a) = norm(agent_cbf_pos(:,a) - obstacles(o).center') - obstacles(o).radius;
+                grad_dist2obst(a,:) = (agent_cbf_pos(:,a) - obstacles(o).center') / dist2obsts(o); % gradj
+            end
+        end
+        grad_h = blkdiag(grad_dist2obst(1,:));
+        for a = 2:N
+            grad_h = blkdiag(grad_h,grad_dist2obst(a,:));
+        end
+            
+        A = - grad_h;
+        b = cbf_alpha * dist2obsts;
 
+        % Store the distance of the agents to objects
+        Agent2Obst_dists = [Agent2Obst_dists, dist2obsts'];
+        grad_Agent2Obst = cat(3,grad_Agent2Obst,grad_dist2obst);
+        grads_hs = cat(3,grads_hs,grad_h);
+        opt_hs = [opt_hs, dist2obsts'];
 
-    if it_loop > niters/2 && forceCBF
-        % A*u >= b --> La cbf actúa
-        A = ones(N,3*N);
-        b = - cbf_alpha * ones(N,1) * MaxStress;
     else
-        % A*u <= b --> La cbf no actúa
-        A = - eye(N,3*N);
-        b = cbf_alpha * ones(N,1) * MaxStress;
+        % Compute the MaxStress
+        MaxStress = yield_stress/SF;
+        H = 2 * eye(3*N);
+        f = -2 * u(:);
+    
+    
+        if it_loop > niters/2 && forceCBF
+            % A*u >= b --> La cbf actúa
+            A = ones(N,3*N);
+            b = - cbf_alpha * ones(N,1) * MaxStress;
+
+            % Store the h gradients
+            grads_hs = cat(3,grads_hs,ones(N,3*N));
+        else
+            % A*u <= b --> La cbf no actúa
+            A = - eye(N,3*N);
+            b = cbf_alpha * ones(N,1) * MaxStress;
+
+            % Store the h gradients
+            grads_hs = cat(3,grads_hs,eye(N,3*N));
+        end
+
+        % store the h values
+        opt_hs = [opt_hs, (ones(N,1) * MaxStress)'];
     end
 
     % Set optimization options
@@ -354,7 +471,7 @@ for it_loop = 1:niters
     % u_cbf = kCBF * u_cbf;
 
     As = [As, A*u_cbf];
-    bs = [bs, b];
+    bs = [bs, b'];
 
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -391,6 +508,10 @@ for it_loop = 1:niters
     for i = 1:N 
         nv(i,1) = norm(u(3*i-2:3*i,1)); % we store the norms of velocity
         nv_cbf(i, 1) = norm(u_cbf(3*i-2:3*i,1));
+        if obstacle_avoidance
+            u_obst = u_obst(:);
+            prop_nv_cbf(i,1) = norm(u_obst(3*i-2:3*i,1));
+        end
     end
     
     % Store current velocity data
@@ -399,6 +520,11 @@ for it_loop = 1:niters
 
     vs_cbf = [vs_cbf u_cbf];
     nvs_cbf = [nvs_cbf nv_cbf];
+
+    if obstacle_avoidance
+        prop_vs_cbf = [prop_vs_cbf u_obst];
+        prop_nvs_cbf = [prop_nvs_cbf prop_nv_cbf];
+    end
 
     %% CBF Errors
     [g_Hcbf, g_Gcbf, eg_cbf, es_cbf, eth_cbf, eth_ind_cbf] = compute_errors3D(reshape(p_cbf,[3,N]),reshape(PT,[3,N]),sd, thd);
@@ -414,15 +540,23 @@ for it_loop = 1:niters
     eth_ys_cbf = [eth_ys_cbf; eth_ind_cbf(2)];           % Pitch Error
     eth_zs_cbf = [eth_zs_cbf; eth_ind_cbf(3)];           % Yaw Error
 
+    %% Pause for live plot
+    if plotLiveCBF
+        pause(0.005) % we give some time for the user to visualize the created plot
+    end
 
 end
 
 %% Create plotting and video
 % Viewing angles for the 3D plot
-view_1 = 0; % 110 deg
-view_2 = 90;  % 29 deg
-view_1 = 14.1759;
-view_2 = 18.4354;
+
+if waypoints
+    view_1 = 145.4729;
+    view_2 = 29.0838;
+else
+    view_1 = 14.1759;
+    view_2 = 18.4354;
+end
 save_plots = false;
 
 %% Plot standard data
@@ -460,17 +594,348 @@ end
 if plotCBFDifferences
     figure;
     
-    plot(As','Color','b','DisplayName','A');
-    hold on;
-    plot(bs', 'Color', 'r', 'DisplayName', 'b');
+    for a = 1:N
+        plot(As(a,:),'Color', color_robots(a),'DisplayName',strcat('A x u_',num2str(a)), 'LineStyle','-');
+        hold on;
+        plot(bs(a,:), 'Color', color_robots(a), 'DisplayName', strcat('b agent_',num2str(a)), 'LineStyle','--');
+    end
     hold off;
-    title("A <= b");
+    title("A x u_c_b_f <= b");
     xlabel("Iters");
-    ylabel("Pa");
-    legend(["A","","","","b"]);
+    ylabel("unitless");
+    grid on;
+    legend show;
 end
 
-%% Plot velocities
+%% Plot Distance to object
+if obstacle_avoidance
+    figure;
+    hold on;
+    for a = 1:N
+        plot(Agent2Obst_dists(a,:),'Color', color_robots(a),'DisplayName',strcat('Agent ',num2str(a)));
+    end
+    hold off;
+    title("Distance to objects");
+    xlabel("Iters");
+    ylabel("Distance (cm)");
+    grid on;
+    legend show;
+end
+
+%% Plot gradient of the distance to object
+if obstacle_avoidance
+    figure;
+    % X
+    subplot(3,1,1);
+    hold on;
+    for a = 1:N
+        plot(squeeze(grad_Agent2Obst(a,1,:)),'Color', color_robots(a),'DisplayName',strcat('Agent ',num2str(a)));
+    end
+    hold off;
+    title("Gradient Distance to Object - X");
+    xlabel("Iters");
+    ylabel("Distance (cm)");
+    grid on;
+    legend show;
+
+    % Y
+    subplot(3,1,2);
+    hold on;
+    for a = 1:N
+        plot(squeeze(grad_Agent2Obst(a,2,:)),'Color', color_robots(a),'DisplayName',strcat('Agent ',num2str(a)));
+    end
+    hold off;
+    title("Gradient Distance to Object - Y");
+    xlabel("Iters");
+    ylabel("Distance (cm)");
+    grid on;
+    legend show;
+
+    % Z
+    subplot(3,1,3);
+    hold on;
+    for a = 1:N
+        plot(squeeze(grad_Agent2Obst(a,3,:)),'Color', color_robots(a),'DisplayName',strcat('Agent ',num2str(a)));
+    end
+    hold off;
+    title("Gradient Distance to Object - Z");
+    xlabel("Iters");
+    ylabel("Distance (cm)");
+    grid on;
+    legend show;
+
+end
+
+%% Gradient Norm
+
+if obstacle_avoidance
+    figure;
+    hold on;
+    for a = 1:N
+        for i = 1:niters
+            norm_grads(a,i) = norm(grad_Agent2Obst(a,:,i));
+        end
+        plot(norm_grads(a,:),'Color', color_robots(a),'DisplayName',strcat('Agent ',num2str(a)));
+    end
+    % ylim([0 3])
+    hold off;
+    title("Norm grad distance");
+    xlabel("Iters");
+    ylabel("Distance (cm)");
+    grid on;
+    legend show;
+end
+
+%% Individual Velocity Correction plot
+if plotCBFVelCorr
+    % LINEAR VELOCITY IN X
+    % We create the figure and set the parameters
+    figure
+    % subplot(3,1,1);
+    set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    box on
+    hold on
+    grid on
+    
+    % Representation
+    for i = 1:N
+        plot(vs_cbf(3*i-2,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('CBF vel Agent %i',i));
+        plot(prop_vs_cbf(3*i-2,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('Des vel Agent %i',i), 'LineStyle','--');
+        % plot(vs(3*i-2,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('Standard vel Agent %i',i), 'LineStyle',':');
+    end
+    
+    % Titles and dimensions
+    set(gca, 'FontSize', 16, 'FontName', plotaxfont); 
+    xlabel('Time (s)', 'FontSize', 18)
+    ylabel('Linear velocity in X (m/s)', 'FontSize', 18)
+    
+    xlim([0, niters]);
+    
+    % legend
+    legend('FontSize', 14, 'Location', 'NorthOutside', 'NumColumns', 4, 'Box', 'off')
+    
+    % Title
+    title('Linear Velocity X Comp', 'FontSize', 14);
+    hold off;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    % LINEAR VELOCITY IN Y
+    % We create the figure and set the parameters
+    % subplot(3,1,2);
+    figure;
+    set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    box on
+    hold on
+    grid on
+    
+    % Representation
+    for i = 1:N
+        plot(vs_cbf(3*i-1,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('CBF vel Agent %i',i));
+        plot(prop_vs_cbf(3*i-1,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('Des vel Agent %i',i), 'LineStyle','--');
+        % plot(vs(3*i-1,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('Standard vel Agent %i',i), 'LineStyle',':');
+    end
+    
+    % Titles and dimensions
+    set(gca, 'FontSize', 16, 'FontName', plotaxfont); 
+    xlabel('Time (s)', 'FontSize', 18)
+    ylabel('Linear velocity in Y (m/s)', 'FontSize', 18)
+    
+    xlim([0, niters]);
+    
+    % legend
+    legend('FontSize', 14, 'Location', 'NorthOutside', 'NumColumns', 4, 'Box', 'off')
+    
+    % Title
+    title('Linear Velocity Y Comp', 'FontSize', 14);
+    hold off;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    % LINEAR VELOCITY IN Z
+    % We create the figure and set the parameters
+    % subplot(3,1,3);
+    figure
+    set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    box on
+    hold on
+    grid on
+    
+    % Representation
+    for i = 1:N
+        plot(vs_cbf(3*i,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('CBF vel Agent %i',i));
+        plot(prop_vs_cbf(3*i,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('Des vel Agent %i',i), 'LineStyle','--');
+        % plot(vs(3*i,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('Standard vel Agent %i',i), 'LineStyle',':');
+    end
+    
+    % Titles and dimensions
+    set(gca, 'FontSize', 16, 'FontName', plotaxfont); 
+    xlabel('Time (s)', 'FontSize', 18)
+    ylabel('Linear velocity in Z (m/s)', 'FontSize', 18)
+    
+    xlim([0, niters]);
+    
+    % legend
+    legend('FontSize', 14, 'Location', 'NorthOutside', 'NumColumns', 4, 'Box', 'off')
+    
+    % Title
+    title('Linear Velocity Z Comp', 'FontSize', 14);
+    hold off;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    % LINEAR VELOCITY NORM
+    % We create the figure and set the parameters
+    figure
+    set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    box on
+    hold on
+    
+    % Representation
+    for i = 1:N
+        plot(nvs_cbf(i,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('CBF vel Agent %i',i));
+        plot(prop_nvs_cbf(i,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('Des vel Agent %i',i), 'LineStyle','--');
+        % plot(nvs(i,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('Standard vel Agent %i',i), 'LineStyle',':');
+    end
+    
+    % Titles and dimensions
+    set(gca, 'FontSize', 16, 'FontName', plotaxfont); 
+    xlabel('Time (s)', 'FontSize', 18)
+    ylabel('Linear velocity norm (m/s)', 'FontSize', 18)
+    
+    xlim([0, niters]);
+    
+    % legend
+    legend('FontSize', 14, 'Location', 'NorthOutside', 'NumColumns', 4, 'Box', 'off')
+    
+    % Title
+    title('Linear Velocity Norm Comp', 'FontSize', 14);
+    hold off;
+
+end
+
+%% Velocity Differences
+
+if plotCBFVelDiff
+    % LINEAR VELOCITY IN X
+    % We create the figure and set the parameters
+    figure
+    subplot(3,1,1);
+    % set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    box on
+    hold on
+    grid on
+    
+    % Representation
+    for i = 1:N
+        plot(prop_vs_cbf(3*i-2,:) - vs_cbf(3*i-2,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('CBF vel Agent %i',i));
+    end
+    
+    % Titles and dimensions
+    set(gca, 'FontSize', 16, 'FontName', plotaxfont); 
+    xlabel('Time (s)', 'FontSize', 18)
+    ylabel('Linear velocity diff in X (m/s)', 'FontSize', 18)
+    
+    xlim([0, niters]);
+    
+    % legend
+    legend('FontSize', 14, 'Location', 'NorthOutside', 'NumColumns', 4, 'Box', 'off')
+    
+    % Title
+    title('Linear Velocity X Difference', 'FontSize', 14);
+    hold off;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    % LINEAR VELOCITY IN Y
+    % We create the figure and set the parameters
+    subplot(3,1,2);
+    % figure;
+    % set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    box on
+    hold on
+    grid on
+    
+    % Representation
+    for i = 1:N
+        plot(prop_vs_cbf(3*i-1,:) - vs_cbf(3*i-1,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('CBF vel Agent %i',i));
+    end
+    
+    % Titles and dimensions
+    set(gca, 'FontSize', 16, 'FontName', plotaxfont); 
+    xlabel('Time (s)', 'FontSize', 18)
+    ylabel('Linear velocity diff in Y (m/s)', 'FontSize', 18)
+    
+    xlim([0, niters]);
+    
+    % legend
+    % legend('FontSize', 14, 'Location', 'NorthOutside', 'NumColumns', 4, 'Box', 'off')
+    
+    % Title
+    title('Linear Velocity Y Difference', 'FontSize', 14);
+    hold off;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    % LINEAR VELOCITY IN Z
+    % We create the figure and set the parameters
+    subplot(3,1,3);
+    % figure
+    % set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    box on
+    hold on
+    grid on
+    
+    % Representation
+    for i = 1:N
+        plot(prop_vs_cbf(3*i,:) - vs_cbf(3*i,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('CBF vel Agent %i',i));
+    end
+    
+    % Titles and dimensions
+    set(gca, 'FontSize', 16, 'FontName', plotaxfont); 
+    xlabel('Time (s)', 'FontSize', 18)
+    ylabel('Linear velocity diff in Z (m/s)', 'FontSize', 18)
+    
+    xlim([0, niters]);
+    
+    % legend
+    % legend('FontSize', 14, 'Location', 'NorthOutside', 'NumColumns', 4, 'Box', 'off')
+    
+    % Title
+    title('Linear Velocity Z Difference', 'FontSize', 14);
+    hold off;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    % LINEAR VELOCITY NORM
+    % We create the figure and set the parameters
+    figure
+    set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    box on
+    hold on
+    
+    % Representation
+    for i = 1:N
+        plot(prop_nvs_cbf(i,:) - nvs_cbf(i,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('CBF vel Agent %i',i));
+    end
+    
+    % Titles and dimensions
+    set(gca, 'FontSize', 16, 'FontName', plotaxfont); 
+    xlabel('Time (s)', 'FontSize', 18)
+    ylabel('Linear velocity norm (m/s)', 'FontSize', 18)
+    
+    xlim([0, niters]);
+    
+    % legend
+    legend('FontSize', 14, 'Location', 'NorthOutside', 'NumColumns', 4, 'Box', 'off')
+    
+    % Title
+    title('Linear Velocity Norm Difference', 'FontSize', 14);
+    hold off;
+
+end
+
+%% Velocity comparation
 
 if plotVelComp
 
@@ -478,12 +943,20 @@ if plotVelComp
     plot(nvs(1,:)');
     hold on;
     plot(nvs_cbf(1,:)');
+    if obstacle_avoidance
+        plot(prop_vs_cbf(1,:)');
+    end
     hold off;
     title("Velocity Norm Comparison");
     xlabel("Iters");
     ylabel("m/s");
     % legend(["Agend 1 - std", "Agend 2 - std", "Agend 3 - std", "Agend 4 - std", "Agend 1 - cbf", "Agend 2 - cbf", "Agend 3 - cbf", "Agend 4 - cbf"]);
-    legend(["Agend 1 - std", "Agend 1 - cbf"]);
+    if obstacle_avoidance
+        legend(["Agend 1 - std", "Agend 1 - cbf", "Agent 1 - Proposed cbf"]);
+    else
+        legend(["Agend 1 - std", "Agend 1 - cbf"]);
+    end
+
 end
 
 %% Plot stresses

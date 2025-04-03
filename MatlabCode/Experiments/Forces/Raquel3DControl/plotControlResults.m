@@ -48,16 +48,27 @@ hold on
 view(data.view_1, data.view_2)
 
 % Obtacles plotting
-if exist('data.obstacles1', 'var')
+if isfield(data,'obstacles1')
     for i = 0:50
         plot3(data.obstacles1(1,:), data.obstacles1(2,:), data.obstacles1(3,:) + i*0.02, '-', 'color', "#b0aaa4", 'LineWidth', 2, 'HandleVisibility', 'off');
     end
 end
-if exist('data.obstacles2', 'var')
+if isfield(data,'obstacles2')
     for i = 0:10
         plot3(data.obstacles2(1,:), data.obstacles2(2,:), data.obstacles2(3,:) + i*0.02, '-', 'color', "#b0aaa4", 'LineWidth', 2, 'HandleVisibility', 'off');
     end
 end
+if isfield(data,'obstacles')
+    for o = 1:length(data.obstacles)
+        obs = data.obstacles(o);
+        [X,Y,Z] = sphere;
+        X2 = X * obs.radius;
+        Y2 = Y * obs.radius;
+        Z2 = Z * obs.radius;
+        surf(X2 + obs.center(1),Y2 + obs.center(2),Z2 + obs.center(3),FaceColor=[0.2,0.2,0.2],FaceAlpha=0.3);
+    end
+end
+
 % Initial positions and centroid
 plot3(data.p0(1:3:end), data.p0(2:3:end), data.p0(3:3:end), 'o', 'markersize', 8, 'color', [0.5 0.5 0.8], 'markerfacecolor', [0.5 0.5 0.8], 'DisplayName', 'Posiciones iniciales')
 plot3(data.g0(1,:), data.g0(2,:), data.g0(3,:), '+', 'markersize', 5, 'color', [0.5 0.5 0.8], 'markerfacecolor', [0.5 0.5 0.8], 'linewidth', 1.2, 'HandleVisibility', 'off')
@@ -198,6 +209,13 @@ for i = 1:N
     lines(i) = plot(t_ax, data.ps(3*i-2,:), 'color', data.color_robots(i), 'linewidth', 2);
 end
 
+% Obstacle position X
+if isfield(data,'obstacles')
+    for o = 1:length(data.obstacles)
+        plot(t_ax, repmat(obs.center(1), 1, data.niters), 'color',obs.color, 'LineWidth', 2, 'Linestyle', '--', 'DisplayName', sprintf('Obstacle %i', o));
+    end
+end
+
 % Titles and dimensions
 set(gca, 'FontSize', 16, 'FontName', data.plotaxfont); 
 xlabel('Time (s)', 'FontSize', 18)
@@ -209,6 +227,7 @@ xlim([0, t_ax(end)]);
 for i = 1:N
     lines(i).DisplayName = sprintf('Robot %i',i);
 end
+
 legend('FontSize', 14, 'Location', 'NorthOutside', 'NumColumns', 4, 'Box', 'off')
 
 % Title
@@ -232,6 +251,13 @@ hold on
 % Representation
 for i = 1:N
     lines(i) = plot(t_ax, data.ps(3*i-1,:), 'color', data.color_robots(i), 'linewidth', 2);
+end
+
+% Obstacle position Y
+if isfield(data,'obstacles')
+    for o = 1:length(data.obstacles)
+        plot(t_ax, repmat(obs.center(2), 1, data.niters), 'color',obs.color, 'LineWidth', 2, 'Linestyle', '--', 'DisplayName', sprintf('Obstacle %i', o));
+    end
 end
 
 % Titles and dimensions
@@ -268,6 +294,13 @@ hold on
 % Representation
 for i = 1:N
     lines(i) = plot(t_ax, data.ps(3*i,:), 'color', data.color_robots(i), 'linewidth', 2);
+end
+
+% Obstacle position Z
+if isfield(data,'obstacles')
+    for o = 1:length(data.obstacles)
+        plot(t_ax, repmat(obs.center(3), 1, data.niters), 'color',obs.color, 'LineWidth', 2, 'Linestyle', '--', 'DisplayName', sprintf('Obstacle %i', o));
+    end
 end
 
 % Titles and dimensions
