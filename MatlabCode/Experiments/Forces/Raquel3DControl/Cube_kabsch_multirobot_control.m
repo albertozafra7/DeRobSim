@@ -17,6 +17,8 @@ forceCBF = false;
 realCBF = true;
 
 % If we want to plot the control results
+plotLiveCBF = true;
+plotLiveVonMises = false;
 plotTetramesh = false;
 plotCResults = false;
 plotCResultsCBF = true;
@@ -412,6 +414,41 @@ x_limit = x_limit * zoom_factor;
 y_limit = y_limit* zoom_factor;
 z_limit = z_limit * zoom_factor;
 
+
+if plotLiveVonMises
+    vonMises_fig = figure;
+    set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    hold on
+    box on
+    view(64.3440,35.9240);
+end
+
+if plotLiveCBF
+
+    trajectory_fig = figure;
+    set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    hold on
+    box on
+    
+    if moveNdim == 3
+        xlim(x_limit/zoom_factor) % to define the bounds of the plot properly
+        ylim(y_limit/zoom_factor)
+        zlim([-0.5 2])
+        daspect([1 1 1]) % to have same plotted size of units in x and y
+        view(5.1317,25.1351);
+        grid on;
+    else
+        xlim(x_limit) % to define the bounds of the plot properly
+        ylim(y_limit)
+        zlim(z_limit)
+        daspect([1 1 1]) % to have same plotted size of units in x and y
+    end
+
+end
+
+
+
+
 % Create animation (Considering only 2 layers of Agents)
 pairs = [];
 for i = 1:N/2-1
@@ -428,31 +465,45 @@ end
 pairs = [pairs; [1 7]; [2 8]; [3 5]; [4 6]];
 %%%
 
-if having_obstacles
-    for i = 1:size(pairs,1)
-        object_lines(i) = plot3([p(3*pairs(i,1)-2), p(3*pairs(i,2)-2)], [p(3*pairs(i,1)-1), p(3*pairs(i,2)-1)], [p(3*pairs(i,1)), p(3*pairs(i,2))], 'k-', 'linewidth', 0.5);
-    end
-    
-    % Obtacles plotting
-    for i = 0:50
-        plot3(obstacles1(1,:), obstacles1(2,:), obstacles1(3,:) + i*0.02, 'k-', 'LineWidth', 2);
-    end
-    for i = 0:10
-        plot3(obstacles2(1,:), obstacles2(2,:), obstacles2(3,:) + i*0.02, 'k-', 'LineWidth', 2);
-    end
-end
 
-if waypoints
+if plotLiveCBF
+    figure(trajectory_fig);
     % Initial, target and current positions
     for i = 1:N
         plot3(p0(3*i-2,1), p0(3*i-1,1), p0(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 15);
         plot3(PT(3*i-2,1), PT(3*i-1,1), PT(3*i,1), 'o', 'color', color_robots(i), 'MarkerSize', 7, 'LineWidth', 1.5);
         robot_tr(i) = plot3(p(3*i-2,1), p(3*i-1,1), p(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 30);
+        robot_path(i) = plot3(p(3*i-2,:), p(3*i-1,:), p(3*i,:), '-', 'color', color_robots(i), 'linewidth', 2); % data.path lines
+    end
+    % Lines between robots
+    for i = 1:size(pairs,1)
+        plot3([p0(3*pairs(i,1)-2), p0(3*pairs(i,2)-2)], [p0(3*pairs(i,1)-1), p0(3*pairs(i,2)-1)], [p0(3*pairs(i,1)), p0(3*pairs(i,2))], '--', 'color', [0.5 0.5 0.8], 'linewidth', 1.5, 'HandleVisibility', 'off');
+        plot3([PT(3*pairs(i,1)-2), PT(3*pairs(i,2)-2)], [PT(3*pairs(i,1)-1), PT(3*pairs(i,2)-1)], [PT(3*pairs(i,1)), PT(3*pairs(i,2))], '--', 'color', [0.8 0.5 0.5], 'linewidth', 1.5, 'HandleVisibility', 'off');
+        robot_lines(i) = plot3([p(3*pairs(i,1)-2), p(3*pairs(i,2)-2)], [p(3*pairs(i,1)-1), p(3*pairs(i,2)-1)], [p(3*pairs(i,1)), p(3*pairs(i,2))], '--', 'color', [0.5 0.8 0.5], 'linewidth', 1.5, 'HandleVisibility', 'off');
     end
     plot3(g0(1,:), g0(2,:), g0(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
     % plot3(gd(1,:), gd(2,:), gd(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
-    plot3(waypoints_g(1,:), waypoints_g(2,:), waypoints_g(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
+    
+    if waypoints
+        plot3(waypoints_g(1,:), waypoints_g(2,:), waypoints_g(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
+    end
+
+    if having_obstacles
+        for i = 1:size(pairs,1)
+            object_lines(i) = plot3([p(3*pairs(i,1)-2), p(3*pairs(i,2)-2)], [p(3*pairs(i,1)-1), p(3*pairs(i,2)-1)], [p(3*pairs(i,1)), p(3*pairs(i,2))], 'k-', 'linewidth', 0.5);
+        end
+        
+        % Obtacles plotting
+        for i = 0:50
+            plot3(obstacles1(1,:), obstacles1(2,:), obstacles1(3,:) + i*0.02, 'k-', 'LineWidth', 2);
+        end
+        for i = 0:10
+            plot3(obstacles2(1,:), obstacles2(2,:), obstacles2(3,:) + i*0.02, 'k-', 'LineWidth', 2);
+        end
+    end
 end
+
+
 
 
 %% Object Simulation
@@ -506,20 +557,40 @@ for it_loop = 1:niters
         view(view_1-(it_loop-25)*0.5, view_2)
     end
     
-    if having_obstacles
-        % Plot the robots in their current position in each iteration
-        for i = 1:N
-            robot_tr(i).XData = p(3*i-2,1);
-            robot_tr(i).YData = p(3*i-1,1);
-            robot_tr(i).ZData = p(3*i,1);
-        end
-        
-        for i = 1:size(object_lines,2)
-            object_lines(i).XData = [p(3*pairs(i,1)-2), p(3*pairs(i,2)-2)];
-            object_lines(i).YData = [p(3*pairs(i,1)-1), p(3*pairs(i,2)-1)];
-            object_lines(i).ZData = [p(3*pairs(i,1)), p(3*pairs(i,2))];
+    if plotLiveCBF
+        try
+            figure(trajectory_fig);
+            % Plot the robots in their current position in each iteration
+            for i = 1:N
+                % Current Position
+                robot_tr(i).XData = p_cbf(3*i-2,1);
+                robot_tr(i).YData = p_cbf(3*i-1,1);
+                robot_tr(i).ZData = p_cbf(3*i,1);
+
+                % Path
+                robot_path(i).XData = ps_cbf(3*i-2,:);
+                robot_path(i).YData = ps_cbf(3*i-1,:);
+                robot_path(i).ZData = ps_cbf(3*i,:);
+            end
+            for i = 1:size(pairs,1)
+                robot_lines(i).XData = [p_cbf(3*pairs(i,1)-2), p_cbf(3*pairs(i,2)-2)];
+                robot_lines(i).YData = [p_cbf(3*pairs(i,1)-1), p_cbf(3*pairs(i,2)-1)];
+                robot_lines(i).ZData = [p_cbf(3*pairs(i,1)), p_cbf(3*pairs(i,2))];
+            end
+
+            if having_obstacles
+                for i = 1:size(object_lines,2)
+                    object_lines(i).XData = [p(3*pairs(i,1)-2), p(3*pairs(i,2)-2)];
+                    object_lines(i).YData = [p(3*pairs(i,1)-1), p(3*pairs(i,2)-1)];
+                    object_lines(i).ZData = [p(3*pairs(i,1)), p(3*pairs(i,2))];
+                end
+            end
+        catch
+            disp("Trajectory Live Window Closed");
+            plotLiveCBF = false;
         end
     end
+
 
     % Simulate how the object is deformed
     Pob = simulate_object_arap(arap_params, Pob, [reshape(p, [3,N])]);
@@ -664,8 +735,17 @@ for it_loop = 1:niters
 
         end
     end
+
+    if plotLiveVonMises
+        figure(vonMises_fig);
+        trisurf(omesh.elements, Pob0(1,:)', Pob0(2,:)', Pob0(3,:)', vm_stress, 'EdgeColor', 'none');
+    end
+
     
-    % pause(0.005) % we give some time for the user to visualize the created plot
+    %% Pause for live plot
+    if plotLiveCBF
+        pause(0.005) % we give some time for the user to visualize the created plot
+    end
  
 end
 

@@ -14,7 +14,7 @@ moveNdim = 3; % 1 -> Movement in X; 2 -> Movement in X and Y; 3 -> Movement in 3
 forceCBF = false;
 
 % If we want to plot the control results
-plotLiveCBF = false;
+plotLiveCBF = true;
 plotCResults = false;
 plotCResultsCBF = true;
 plotCBFDifferences = true;
@@ -207,6 +207,7 @@ k_s = 50;         % for scaling
 k_Hd = 1.5;       % for scaling and orientation
 kCBF = 2;         % for controllig the stress avoidance influence
 cbf_alpha = 0.15; % for controlling the risks taken by the barrier function
+cbf_alpha = 1;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -328,6 +329,7 @@ if plotLiveCBF
         plot3(p0(3*i-2,1), p0(3*i-1,1), p0(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 15);
         plot3(PT(3*i-2,1), PT(3*i-1,1), PT(3*i,1), 'o', 'color', color_robots(i), 'MarkerSize', 7, 'LineWidth', 1.5);
         robot_tr(i) = plot3(p(3*i-2,1), p(3*i-1,1), p(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 30);
+        robot_path(i) = plot3(p(3*i-2,:), p(3*i-1,:), p(3*i,:), '-', 'color', color_robots(i), 'linewidth', 2); % data.path lines
     end
     % Lines between robots
     for i = 1:size(pairs,1)
@@ -369,9 +371,15 @@ for it_loop = 1:niters
         try
             % Plot the robots in their current position in each iteration
             for i = 1:N
+                % Current Position
                 robot_tr(i).XData = p_cbf(3*i-2,1);
                 robot_tr(i).YData = p_cbf(3*i-1,1);
                 robot_tr(i).ZData = p_cbf(3*i,1);
+
+                % Path
+                robot_path(i).XData = ps_cbf(3*i-2,:);
+                robot_path(i).YData = ps_cbf(3*i-1,:);
+                robot_path(i).ZData = ps_cbf(3*i,:);
             end
             for i = 1:size(pairs,1)
                 robot_lines(i).XData = [p_cbf(3*pairs(i,1)-2), p_cbf(3*pairs(i,2)-2)];
