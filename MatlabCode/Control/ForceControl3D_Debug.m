@@ -25,7 +25,7 @@
 % Author: Alberto Zafra Navarro, January 2025
 
 % function [v, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual] = ForceControl3D_Debug(vert_origins, vert_positions, vert_prevpositions, agent_positions, agent_destinations, meshTetrahedrons, prev_stressTensor, E, nu, yield_stress, SF, kCBF, katt, krep, cbf_alpha, kH, kG, ks, kg, kth, sd, thd, vsat)
-function [v, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual, curr_vmSigma, curr_SigmaTensor, A, b] = ForceControl3D_Debug(vert_origins, vert_positions, agent_positions, agent_destinations, meshTetrahedrons, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, kH, kG, ks, kg, kth, sd, thd, vsat)
+function [v, U_f, u_3D, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual, curr_vmSigma, curr_SigmaTensor, strains, A, b, grad_h, scaled_delta, pred_nodal_stresses, pred_stresses_element, pred_strains, element_displacements] = ForceControl3D_Debug(vert_origins, vert_positions, agent_positions, agent_destinations, meshTetrahedrons, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, kH, kG, ks, kg, kth, sd, thd, vsat)
 
     % ++++++++++ Optional parameters evaluation ++++++++++
 
@@ -248,7 +248,14 @@ function [v, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destin
     %%%%%%%%%%%%%%%%%%%%%%% 
   
     % Control law
-    u = u_H + u_G + u_c + u_s + u_Hd;
+    u_3D = u_H + u_G + u_c + u_s + u_Hd;
+
+    % Velocity saturation
+    for i = 1:N
+        if norm(u_3D(3*i-2:3*i,:)) > vsat
+            u_3D(3*i-2:3*i,:) = vsat * u_3D(3*i-2:3*i,:) / norm(u_3D(3*i-2:3*i,:));
+        end
+    end
 
     %%%%%%%%%%%%%%%%%%%%%%% 
 
@@ -256,7 +263,7 @@ function [v, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destin
     % U_cbf = kCBF * stressControlWithBarrier(u, curr_SigmaTensor, curr_vmSigma, ...
     %                         meshTetrahedrons, yield_stress, SF, cbf_alpha, Ce, Le, J);
 
-    [cbf_u, A, b] = stressControlWithBarrier(u, curr_SigmaTensor, curr_vmSigma, ...
+    [cbf_u, A, b, grad_h, scaled_delta, pred_nodal_stresses, pred_stresses_element, pred_strains, element_displacements] = stressControlWithBarrier_Debug(u_3D, curr_SigmaTensor, curr_vmSigma, ...
                             meshTetrahedrons, yield_stress, SF, cbf_alpha, Ce, Le, J);
 
     U_cbf = kCBF * cbf_u;
@@ -264,7 +271,7 @@ function [v, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destin
 
     u_cbf = reshape(U_cbf, [3*N,1]);
 
-    % u = u_cbf;
+    u = u_cbf;
 
     %%%%%%%%%%%%%%%%%%%%%%% 
 
@@ -562,10 +569,6 @@ end
 
 %%%%%%%%%%%%%%%% Barrier Functions %%%%%%%%%%%%%%%%
 
-% function [AgentsVels] = stressControlWithBarrier(curr_VertexPose, prev_VertexPose, ...
-%                             AgentsPose, AgentGoals, AgentActions, curr_StressTensor, curr_vmStress, ...
-%                             prev_StressTensor, YieldStress, SF, alpha, Katt, Krep)
-
 function [AgentsVels, A, b] = stressControlWithBarrier(AgentActions, curr_StressTensor, curr_vmStress, ...
                             meshTetrahedrons, YieldStress, SF, alpha, Ce, Be, J)
 % stressControlWithBarrier
@@ -589,15 +592,6 @@ function [AgentsVels, A, b] = stressControlWithBarrier(AgentActions, curr_Stress
 % Outputs:
 % 1. AgentVels: Computed velocity of the agents after applying the barrier functions (n_agents x ndim)
 
-    % Parameters
-    % n_vertices = size(curr_VertexPose, 1); % Number of virtual points
-    % n_agents = size(AgentsPose, 1);        % Number of agents
-    % ndim = size(AgentsPose, 2);           % Number of dimensions
-
-    % Preallocate velocities
-    % AgentsVels = zeros(n_agents,ndim);
-    % v_virtual = zeros(n_vertices,ndim);
-
     % Set optimization options
     options = optimset('Display', 'off');
 
@@ -607,16 +601,11 @@ function [AgentsVels, A, b] = stressControlWithBarrier(AgentActions, curr_Stress
     % Get time measurement
     tStart = tic; % Start time
 
-
-    % Barrier function control for virtual points
-    % for i = 1:n_vertices
     % Compute stress barrier function
     h = MaxStress - curr_vmStress;
     % grad_h = computeVonMisesDerivativeFw(curr_StressTensor, curr_vmStress, Ce, Be, J, AgentActions, meshTetrahedrons);
     grad_h = computeVonMisesDerivative(curr_StressTensor, curr_vmStress, Ce, Be, J, meshTetrahedrons);
 
-    % Desired velocity for repulsion from stress
-    % vrep = Krep * (h / MaxStress);
 
     % Define QP problem
     H = 2 * eye(length(AgentActions));  % Quadratic cost for velocity
@@ -628,27 +617,59 @@ function [AgentsVels, A, b] = stressControlWithBarrier(AgentActions, curr_Stress
     % Solve QP for velocity
     AgentsVels = quadprog(H, f, A, b, [], [], [], [], [], options);
 
-    % end
+    tEnd = toc(tStart);
+    % fprintf("Computation completed after %f seconds.\n", tEnd);
+end
 
-    % % Aggregate virtual point influence for agents
-    % for j = 1:n_agents
-    %     % Compute agent's attraction velocity towards goal
-    %     v_att = -Katt * (AgentsPose(j, :) - AgentGoals(j, :));
-    % 
-    %     % Aggregate virtual point repulsions based on proximity
-    %     v_rep = zeros(1, ndim);
-    %     for i = 1:n_vertices
-    %         dist = norm(curr_VertexPose(i, :) - AgentsPose(j, :));
-    %         if dist > 0
-    %             weight = 1 / (dist^2); % Weight inversely proportional to squared distance
-    %             v_rep = v_rep + weight * v_virtual(i,:);
-    %         end
-    %     end
-    % 
-    %     % Combine attraction and repulsion
-    %     AgentsVels(j,:) = v_att + v_rep;
-    % end
-    
+function [AgentsVels, A, b, grad_h, scaled_delta, pred_nodal_stresses, pred_stresses_element, pred_strains, element_displacements] = stressControlWithBarrier_Debug(AgentActions, curr_StressTensor, curr_vmStress, ...
+                            meshTetrahedrons, YieldStress, SF, alpha, Ce, Be, J)
+% stressControlWithBarrier
+% This function simulates a control system where agents move towards goals while avoiding high-stress regions.
+%
+% Inputs:
+% 1. curr_VertexPose: Current positions of nodal points (n_vertices x ndim)
+% 2. prev_VertexPose: Previous positions of nodal points (n_vertices x ndim)
+% 3. AgentsPose: Current positions of agents (n_agents x ndim)
+% 4. AgentGoals: Desired positions of agents (n_agents x ndim)
+% 5. AgentActions: Desired velocity of agents (n_agents x ndim)
+% 6. curr_StressTensor: Current stress values for each virtual point (n_vertices x 6)
+% 7. curr_vmStress: Current von Mises stress values for each virtual point (n_vertices x 1)
+% 8. prev_StressTensor: Previous stress values for each virtual point (n_vertices x 6)
+% 9. Yield: Yield allowed stress threshold (scalar)
+% 10. SF: Safety factor used to compute the Maximum allowed stress threshold (scalar)
+% 11. alpha: Barrier function constraint parameter (scalar)
+% 12. Katt: Attraction gain for agents towards goals (scalar)
+% 13. Krep: Repulsion gain for virtual points away from stress (scalar)
+%
+% Outputs:
+% 1. AgentVels: Computed velocity of the agents after applying the barrier functions (n_agents x ndim)
+
+    % Set optimization options
+    options = optimset('Display', 'off');
+
+    % Compute the MaxStress
+    MaxStress = YieldStress/SF;
+
+    % Get time measurement
+    tStart = tic; % Start time
+
+
+    % Compute stress barrier function
+    h = MaxStress - curr_vmStress;
+    % grad_h = computeVonMisesDerivativeFw(curr_StressTensor, curr_vmStress, Ce, Be, J, AgentActions, meshTetrahedrons);
+    [grad_h, scaled_delta, pred_nodal_stresses, pred_stresses_element, pred_strains, element_displacements] = computeVonMisesDerivative_Debug(curr_StressTensor, curr_vmStress, Ce, Be, J, meshTetrahedrons);
+
+
+    % Define QP problem
+    H = 2 * eye(length(AgentActions));  % Quadratic cost for velocity
+    f = -2 * AgentActions;              % Linear term for desired velocity
+    A = - grad_h;                       % Gradient of barrier function
+    b = alpha * h;                      % Barrier constraint
+    % b = - alpha * h; ---> This was before!!!!
+
+    % Solve QP for velocity
+    AgentsVels = quadprog(H, f, A, b, [], [], [], [], [], options);
+
     tEnd = toc(tStart);
     % fprintf("Computation completed after %f seconds.\n", tEnd);
 end
@@ -768,6 +789,119 @@ function grad_h = computeVonMisesDerivative(curr_stress, VM_stress, Ce, Le, J, m
 
 end
 
+%% Debug
+function [grad_h, scaled_delta, pred_nodal_stresses, pred_stresses_element, pred_strains, element_displacements] = computeVonMisesDerivative_Debug(curr_stress, VM_stress, Ce, Le, J, meshTetrahedrons)
+
+    N_tet = size(meshTetrahedrons, 1); % Number of tetrahedrons
+    N_verts = size(VM_stress, 1);      % Number of vertices
+
+    % -----------------------------------------------------------
+    % 1️⃣ Compute von Mises stress gradient delta
+    % -----------------------------------------------------------
+
+    % Extract stress components
+    sigma_11 = curr_stress(:, 1);
+    sigma_22 = curr_stress(:, 2);
+    sigma_33 = curr_stress(:, 3);
+    sigma_12 = curr_stress(:, 4);
+    sigma_13 = curr_stress(:, 5);
+    sigma_23 = curr_stress(:, 6);
+
+    % Compute derivatives of von Mises stress w.r.t. stress tensor components
+    d_sigma_11 = (2 * sigma_11 - sigma_22 - sigma_33);
+    d_sigma_22 = (-sigma_11 + 2 * sigma_22 - sigma_33);
+    d_sigma_33 = (-sigma_11 - sigma_22 + 2 * sigma_33);
+    d_sigma_12 = (6 * sigma_12);
+    d_sigma_13 = (6 * sigma_13);
+    d_sigma_23 = (6 * sigma_23);
+
+    % Gradient of von Mises stress w.r.t. stress tensor components
+    delta = [d_sigma_11, d_sigma_22, d_sigma_33, d_sigma_12, d_sigma_13, d_sigma_23]; % (6 x N_verts)
+
+    % Scale delta by 2 / VM_stress (element-wise division)
+    scaled_delta = delta ./ (2 * VM_stress); % (6 x N_verts)
+
+    % -----------------------------------------------------------
+    % 2️⃣ Construct matrix G: maps nodal displacements to element displacements
+    % -----------------------------------------------------------
+
+    elements = meshTetrahedrons';  
+    elements = elements(:); % Flatten to (4*N_tet x 1)
+
+    % Repeat each node index 3 times (for x, y, z DOFs)
+    nodes_rep = repelem(elements, 3);  
+
+    % Create column indices in global displacement vector (u)
+    components = repmat([1; 2; 3], 4 * N_tet, 1);  
+    columns = 3 * (nodes_rep - 1) + components;  
+
+    % Row indices in G (sequential for 12 DOFs per tetrahedron)
+    rows = (1:12*N_tet)';  
+
+    % Sparse transformation matrix G (maps nodal displacements to element displacements)
+    G = sparse(rows, columns, 1, 12*N_tet, 3*N_verts);
+
+    % Compute element displacements
+    element_displacements = G * J;  % (12*N_tet x 3*N_a)
+
+    % -----------------------------------------------------------
+    % 3️⃣ Compute element strains and stresses
+    % -----------------------------------------------------------
+
+    % Compute the Block Diagonal Strain-Displacement Matrix (6*N_tet x 12*N_tet)
+    Le_blck = From3DToBlockDiagonalMatrix(Le, true);
+
+    % Compute element strains (6 * N_tet x 3*N_a*N_tet)
+    pred_strains = Le_blck * element_displacements;
+
+    % Compute the Block Diagonal Stiffness Matrix (6*N_tet x 6*N_tet)
+    Ce_blck = kron(eye(N_tet),Ce);
+    Ce_blck = sparse(Ce_blck);
+
+    % Compute element stresses (6*N_tet x 3*N_a*N_tet)
+    pred_stresses_element = Ce_blck * pred_strains;
+
+    % -----------------------------------------------------------
+    % 4️⃣ Construct matrix W: maps element stresses to nodal stresses
+    % -----------------------------------------------------------
+
+    % Construct sparse mapping matrix W (6*N_verts x 6*N_tet)
+    % Transpose and linearize node indices for rows
+    rows = meshTetrahedrons';  % Transpose to 4×N_tet
+    rows = rows(:);            % Flatten to 4*N_tet × 1
+
+    % Column indices: [1,1,1,1,2,2,2,2,...,N_tet,N_tet,N_tet,N_tet]
+    cols = repelem(1:N_tet, 4)';  % Repeat each tetrahedron index 4 times
+    
+    % Basic sparse matrix for node-element mapping (N_verts x N_tet)
+    W_basic = sparse(rows, cols, 1, N_verts, N_tet);
+    
+    % Expand W to handle 6 stress components per node
+    W_blck = kron(W_basic, speye(6)); % (6*N_verts x 6*N_tet)
+    
+    % Compute nodal stresses
+    pred_nodal_stresses = W_blck * pred_stresses_element; % (6*N_verts x 3*N_a)
+    
+    % Normalize by the number of contributions per node
+    denom = sum(W_blck, 2); % (6*N_verts x 3*N_a)
+    pred_nodal_stresses = pred_nodal_stresses ./ denom;
+
+    % -----------------------------------------------------------
+    % 5️⃣ Compute the constraint matrix A
+    % -----------------------------------------------------------
+
+   % Create a cell array where each cell is a 1x6 row from the partial
+   % derivatives
+    cells = mat2cell(scaled_delta, ones(1, N_verts), 6);
+    
+    % Create S as a block-diagonal matrix to perform the multiplication
+    % with the predicted stress
+    S = blkdiag(cells{:}); % (N_verts x 6*N_verts)
+    
+    % Compute the final gradient of von Mises
+    grad_h = S * pred_nodal_stresses; % (N_verts x 6*Nverts) * (6*N_verts x 3*N_a) -> (N_verts x 3*N_a)
+
+end
 
 
 

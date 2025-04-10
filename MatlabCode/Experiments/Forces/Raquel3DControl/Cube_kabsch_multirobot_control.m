@@ -10,7 +10,7 @@ clc;
 waypoints = false;
 rotation_z = false;
 having_obstacles = false;
-moveNdim = 1; % 1 -> Movement in X; 2 -> Movement in X and Y; 3 -> Movement in 3D
+moveNdim = 3; % 1 -> Movement in X; 2 -> Movement in X and Y; 3 -> Movement in 3D
 
 % If we want to use the Control Barrier Functions
 forceCBF = false;
@@ -19,13 +19,21 @@ realCBF = true;
 % If we want to plot the control results
 plotLiveCBF = true;
 plotLiveVonMises = false;
+plotVonMisesMax = true;
 plotTetramesh = false;
 plotCResults = false;
-plotCResultsCBF = true;
+plotCResultsCBF = false;
 plotCBFDifferences = true;
+plotCBFParams = true;
 plotControlOutputs = false;
-plotVelComp = true;
+plotCBFVelCorr = false;
+plotCBFVelDiff = false;
+plotVelComp = false;
 plotStresses = true;
+plotVMStressDiff = true;
+plotVMStressComp = true;
+plotHsCBF = true;
+plotGradsHCBF = true;
 
 %% We add the paths of the folder and subfolders we will need.
 
@@ -39,6 +47,14 @@ else
     addpath(Aux_path)
 end
 
+
+%% Create plotting and video
+% Viewing angles for the 3D plot
+view_1 = 0; % 110 deg
+view_2 = 90;  % 29 deg
+view_1 = 14.1759;
+view_2 = 18.4354;
+save_plots = false;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -368,6 +384,8 @@ us = [];                % Final Control Outputs (U_f)
 
 % CBF
 ps_cbf = [];            % positions with the barrier function
+prop_nvs_cbf = [];      % desired linear velocities norm CBF (Before the CBF)
+prop_vs_cbf = [];       % desired linear velocities (Befor the CBF)
 nvs_cbf = [];           % linear velocities norm CBF
 vs_cbf = [];            % linear velocities
 As = [];                % Left side of the optimization condition
@@ -380,6 +398,19 @@ eths_cbf = [];          % rotation eror
 eth_xs_cbf = [];        % x angle errors
 eth_ys_cbf = [];        % y angle errors
 eth_zs_cbf = [];        % z angle errors
+grads_hs = [];          % gradients of the h function of the cbf
+opt_hs = [];            % record of the h function of the cbf
+
+% Stress Related things
+pred_strains_cbf = [];  % record of the predicted strains produced on the cbf control
+strains_cbf = [];       % record of the strains produced on the cbf control
+pred_stresses_cbf = []; % record of the predicted stress tensors produced on the cbf control
+pred_vmStresses_cbf =[];% record of the predicted von Mises stresses produced on the cbf control
+scaled_deltas = [];     % record of the von Mises derivative produced on the cbf control
+nodal_disp_cbf = [];    % record of the nodal displacements produced on the cbf control
+vmStresses_3D = [];     % record of the nodal von Mises stress of the 3D controller
+StressTensors_3D = [];  % record of the nodal stress tensors of the 3D controller
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -625,9 +656,32 @@ for it_loop = 1:niters
     %% Control Algorithm
 
     if realCBF
-        [~, ~, ~, ~, ~, ~, ~, u_cbf, agent_cbf_positions, ~, ~, ~, ~, ~, ~, ~, vm_stress, stress_tensor, A, b] = ForceControl3D_Debug(Pob0', Pob_cbf', reshape(p_cbf, [ndims,N]), agent_destinations, omesh.elements, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
+        
+        [~, ~, u_3D, ~, ~, ~, ~, ~, u_cbf, agent_cbf_positions, ~, ~, ~, ~, ~, ~, ~, vm_stress, stress_tensor, curr_strain, A, b, grad_h, scaled_delta, pred_nodal_stresses, pred_stresses_element, pred_strains, element_displacements] = ForceControl3D_Debug(Pob0', Pob_cbf', reshape(p_cbf, [ndims,N]), agent_destinations, omesh.elements, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
+
+        % Current Stresses
         vm_stresses = [vm_stresses, vm_stress];
         tensor_stresses = cat(3, tensor_stresses, stress_tensor);
+        
+        % Strains recording
+        pred_strains_cbf = cat(3, pred_strains_cbf, pred_strains*u_3D);
+        % pred_strains_cbf = cat(3, pred_strains_cbf, pred_strains*u_cbf);
+        strains_cbf = cat(3, strains_cbf, curr_strain);
+
+        % von Mises Derivative
+        scaled_deltas = cat(3, scaled_deltas, scaled_delta);
+
+        % Predicted Stresses
+        pred_nodal_stresses = pred_nodal_stresses*u_3D;
+        % pred_nodal_stresses = pred_nodal_stresses*u_cbf;
+        pred_nodal_stresses = reshape(pred_nodal_stresses,[6,size(omesh.shape,1)]);
+        pred_stresses_cbf = cat(3, pred_stresses_cbf, pred_nodal_stresses); % Per node
+
+        % Gradients of h
+        grads_hs = [grads_hs, grad_h*u_3D];
+        % grads_hs = [grads_hs, grad_h*u_cbf];
+
+
     end
     [u, U_f, U_H, u_G, U_s, u_c, U_Hd, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual] = TransportationControl3D_Debug(reshape(p, [ndims,N]), agent_destinations, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
     
@@ -697,6 +751,9 @@ for it_loop = 1:niters
     for i = 1:N 
         nv(i,1) = norm(u(3*i-2:3*i,1)); % we store the norms of velocity
         nv_cbf(i, 1) = norm(u_cbf(3*i-2:3*i,1));
+        if realCBF
+            prop_nv_cbf(i,1) = norm(u_3D(3*i-2:3*i,1));
+        end
     end
     
     % Store current velocity data
@@ -705,6 +762,12 @@ for it_loop = 1:niters
 
     vs_cbf = [vs_cbf u_cbf];
     nvs_cbf = [nvs_cbf nv_cbf];
+
+    % Proposed 3D vel
+    if realCBF
+        prop_vs_cbf = [prop_vs_cbf u_3D];
+        prop_nvs_cbf = [prop_nvs_cbf prop_nv_cbf];
+    end
 
     %% CBF Errors
     [g_Hcbf, g_Gcbf, eg_cbf, es_cbf, eth_cbf, eth_ind_cbf] = compute_errors3D(reshape(p_cbf,[3,N]),reshape(PT,[3,N]),sd, thd);
@@ -749,6 +812,54 @@ for it_loop = 1:niters
  
 end
 
+%% Computation of the Stress-related things
+if realCBF
+    N_tet = size(omesh.elements,1);
+    % ** Initial Poses **
+    InitTetPoses_3D = omesh.shape(omesh.elements',:); % (4*N_tet x 3)
+    InitTetPoses_3D = permute(reshape(InitTetPoses_3D, 4, N_tet, 3), [1, 3, 2]); % (4x3xN_tet)
+    column_tet_origins_3D = reshape(permute(InitTetPoses_3D, [2, 1, 3]), 12, 1, N_tet); % (12x1xN_tet)
+    for iter = 1:niters
+        currTetPoses_3D = Pob(:,omesh.elements')';  % We get the poses of the vertices of each tetrahedron as (4*N_tet x 3)
+        currTetPoses_3D = permute(reshape(currTetPoses_3D, 4, N_tet, 3), [1, 3, 2]); % We reshape the matrix to (4x3xN_tet) for a better understanding
+        column_tet_positions_3D = reshape(permute(currTetPoses_3D, [2, 1, 3]), 12, 1, N_tet);  % We reshape to a column vector of (12x1xN_tet) in order to multiply it by the Rotation and stiffness matrices
+
+
+        % ------- 3D Internal Stress -------
+        % Computation of the Elasticity Matrix (Material Stifness Matrix)
+        Ce = CeMatrixComputation(E, nu); % 6x6 symmetric matrix 
+    
+        % Computation of the strain-displacement matrix
+        Le = LeMatrixComputation(omesh.elements, omesh.shape); % 6x12 matrix
+    
+        % Computed based on eq. 7 (Petit et all. 2017)
+        % sigma_e = Ce * Le * u_hat_e
+        % Ce_Le = pagemtimes(Ce, Le); % This results on a 6x12xN_tet matrix
+        u_hat_e_3D = column_tet_positions_3D - column_tet_origins_3D; % We compute the displacement of the nodes and store it in a column vector (12x1xN_tet)
+        strains_3D = pagemtimes(Le, u_hat_e_3D); % Strain Tensor of each tetrahedron (6x1xN_tet), where the 3 first components are the normal strains and the 3 last are the shear strains
+        stresses_3D = pagemtimes(Ce, strains_3D); % Stress Tensor of each tetrahedron (6x1xN_tet), where the 3 first components are the normal stresses (sigma) and the 3 last are the shear stresses (tau)
+            
+        % ------- von Mises Stress -------
+        % We compute the vertex/tetrahedron-wise's von Mises Stress
+        [vmSigma_3D, SigmaTensor_3D] = VonMisesStressComp(stresses_3D, omesh.elements, size(omesh.shape,1));
+
+        vmStresses_3D = [vmStresses_3D, vmSigma_3D];
+        StressTensors_3D = cat(3, StressTensors_3D, SigmaTensor_3D);
+    end
+
+
+    % Computation of the predicted VM stress
+    pred_sigma_12 = pred_stresses_cbf(1,:,:) - pred_stresses_cbf(2,:,:); % sigma_x - sigma_y
+    pred_sigma_23 = pred_stresses_cbf(2,:,:) - pred_stresses_cbf(3,:,:); % sigma_y - sigma_z
+    pred_sigma_31 = pred_stresses_cbf(3,:,:) - pred_stresses_cbf(1,:,:); % sigma_z - sigma_x
+    pred_vmStress(:,:) = sqrt(0.5 .* (pred_sigma_12.^2 + pred_sigma_23.^2 + pred_sigma_31.^2) + ...
+        3 .* (pred_stresses_cbf(4,:,:).^2 + pred_stresses_cbf(5,:,:).^2 + pred_stresses_cbf(6,:,:).^2));
+    
+    % Difference between von mises stresses based on the predicted nodal
+    % stresses
+    vonMises_diffs = pred_vmStress - vm_stress;
+end
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -756,14 +867,6 @@ end
 if save_variables == 1
     save(fullfile(strcat(folder_result, '/', variables_name, '_3D')));
 end
-
-%% Create plotting and video
-% Viewing angles for the 3D plot
-view_1 = 0; % 110 deg
-view_2 = 90;  % 29 deg
-view_1 = 14.1759;
-view_2 = 18.4354;
-save_plots = false;
 
 %% Plot standard data
 SimData2Struct_3DControl;
@@ -796,23 +899,279 @@ if plotControlOutputs
     plot_control_outputs;
 end
 
-%% Plot the CBF diferences
+%% Plot the CBF diferences -----> Au VS b
 if plotCBFDifferences
     figure;
-    
-    for a = 1:N
-        plot(As(a,:),'Color', color_robots(a),'DisplayName',strcat('A x u_',num2str(a)), 'LineStyle','-');
-        hold on;
-        plot(bs(a,:), 'Color', color_robots(a), 'DisplayName', strcat('b agent_',num2str(a)), 'LineStyle','--');
-    end
+   % Most representative values comparison
+    % b
+    plot(max(bs),'DisplayName', "b_m_a_x", 'Color','r', 'LineWidth', 2, 'LineStyle',':');
+    hold on;
+    plot(min(bs),'DisplayName', "b_m_i_n", 'Color','b', 'LineWidth', 2, 'LineStyle',':');
+    plot(mean(bs),'DisplayName', "b_m_e_a_n", 'Color', 'black', 'LineWidth', 2, 'LineStyle',':');
+
+    % grad_h
+    plot(max(As),'DisplayName', "(Au)_m_a_x", 'Color','r', 'LineWidth', 2);
+    plot(min(As),'DisplayName', "(Au)_m_i_n", 'Color','b', 'LineWidth', 2);
+    plot(mean(As),'DisplayName', "(Au)_m_e_a_n", 'Color', 'black', 'LineWidth', 2);
+    grid on;
     hold off;
-    title("A x u_c_b_f <= b");
+    title("A x u_c_b_f <= b  || gradH <= α x h");
     xlabel("Iters");
     ylabel("unitless");
+    grid on;
     legend show;
 end
 
-%% Plot velocities
+%% Individual Velocity Correction plot
+if plotCBFVelCorr
+    % LINEAR VELOCITY IN X
+    % We create the figure and set the parameters
+    figure
+    % subplot(3,1,1);
+    set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    box on
+    hold on
+    grid on
+    
+    % Representation
+    for i = 1:N
+        plot(vs_cbf(3*i-2,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('CBF vel Agent %i',i));
+        plot(prop_vs_cbf(3*i-2,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('Des vel Agent %i',i), 'LineStyle','--');
+        % plot(vs(3*i-2,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('Standard vel Agent %i',i), 'LineStyle',':');
+    end
+    
+    % Titles and dimensions
+    set(gca, 'FontSize', 16, 'FontName', plotaxfont); 
+    xlabel('Time (s)', 'FontSize', 18)
+    ylabel('Linear velocity in X (m/s)', 'FontSize', 18)
+    
+    xlim([0, niters]);
+    
+    % legend
+    legend('FontSize', 14, 'Location', 'NorthOutside', 'NumColumns', 4, 'Box', 'off')
+    
+    % Title
+    title('Linear Velocity X Comp', 'FontSize', 14);
+    hold off;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    % LINEAR VELOCITY IN Y
+    % We create the figure and set the parameters
+    % subplot(3,1,2);
+    figure;
+    set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    box on
+    hold on
+    grid on
+    
+    % Representation
+    for i = 1:N
+        plot(vs_cbf(3*i-1,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('CBF vel Agent %i',i));
+        plot(prop_vs_cbf(3*i-1,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('Des vel Agent %i',i), 'LineStyle','--');
+        % plot(vs(3*i-1,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('Standard vel Agent %i',i), 'LineStyle',':');
+    end
+    
+    % Titles and dimensions
+    set(gca, 'FontSize', 16, 'FontName', plotaxfont); 
+    xlabel('Time (s)', 'FontSize', 18)
+    ylabel('Linear velocity in Y (m/s)', 'FontSize', 18)
+    
+    xlim([0, niters]);
+    
+    % legend
+    legend('FontSize', 14, 'Location', 'NorthOutside', 'NumColumns', 4, 'Box', 'off')
+    
+    % Title
+    title('Linear Velocity Y Comp', 'FontSize', 14);
+    hold off;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    % LINEAR VELOCITY IN Z
+    % We create the figure and set the parameters
+    % subplot(3,1,3);
+    figure
+    set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    box on
+    hold on
+    grid on
+    
+    % Representation
+    for i = 1:N
+        plot(vs_cbf(3*i,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('CBF vel Agent %i',i));
+        plot(prop_vs_cbf(3*i,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('Des vel Agent %i',i), 'LineStyle','--');
+        % plot(vs(3*i,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('Standard vel Agent %i',i), 'LineStyle',':');
+    end
+    
+    % Titles and dimensions
+    set(gca, 'FontSize', 16, 'FontName', plotaxfont); 
+    xlabel('Time (s)', 'FontSize', 18)
+    ylabel('Linear velocity in Z (m/s)', 'FontSize', 18)
+    
+    xlim([0, niters]);
+    
+    % legend
+    legend('FontSize', 14, 'Location', 'NorthOutside', 'NumColumns', 4, 'Box', 'off')
+    
+    % Title
+    title('Linear Velocity Z Comp', 'FontSize', 14);
+    hold off;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    % LINEAR VELOCITY NORM
+    % We create the figure and set the parameters
+    figure
+    set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    box on
+    hold on
+    
+    % Representation
+    for i = 1:N
+        plot(nvs_cbf(i,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('CBF vel Agent %i',i));
+        plot(prop_nvs_cbf(i,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('Des vel Agent %i',i), 'LineStyle','--');
+        % plot(nvs(i,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('Standard vel Agent %i',i), 'LineStyle',':');
+    end
+    
+    % Titles and dimensions
+    set(gca, 'FontSize', 16, 'FontName', plotaxfont); 
+    xlabel('Time (s)', 'FontSize', 18)
+    ylabel('Linear velocity norm (m/s)', 'FontSize', 18)
+    
+    xlim([0, niters]);
+    
+    % legend
+    legend('FontSize', 14, 'Location', 'NorthOutside', 'NumColumns', 4, 'Box', 'off')
+    
+    % Title
+    title('Linear Velocity Norm Comp', 'FontSize', 14);
+    hold off;
+
+end
+
+%% Velocity Differences
+
+if plotCBFVelDiff
+    % LINEAR VELOCITY IN X
+    % We create the figure and set the parameters
+    figure
+    subplot(3,1,1);
+    % set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    box on
+    hold on
+    grid on
+    
+    % Representation
+    for i = 1:N
+        plot(prop_vs_cbf(3*i-2,:) - vs_cbf(3*i-2,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('CBF vel Agent %i',i));
+    end
+    
+    % Titles and dimensions
+    set(gca, 'FontSize', 16, 'FontName', plotaxfont); 
+    xlabel('Time (s)', 'FontSize', 18)
+    ylabel('Linear velocity diff in X (m/s)', 'FontSize', 18)
+    
+    xlim([0, niters]);
+    
+    % legend
+    legend('FontSize', 14, 'Location', 'NorthOutside', 'NumColumns', 4, 'Box', 'off')
+    
+    % Title
+    title('Linear Velocity X Difference', 'FontSize', 14);
+    hold off;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    % LINEAR VELOCITY IN Y
+    % We create the figure and set the parameters
+    subplot(3,1,2);
+    % figure;
+    % set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    box on
+    hold on
+    grid on
+    
+    % Representation
+    for i = 1:N
+        plot(prop_vs_cbf(3*i-1,:) - vs_cbf(3*i-1,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('CBF vel Agent %i',i));
+    end
+    
+    % Titles and dimensions
+    set(gca, 'FontSize', 16, 'FontName', plotaxfont); 
+    xlabel('Time (s)', 'FontSize', 18)
+    ylabel('Linear velocity diff in Y (m/s)', 'FontSize', 18)
+    
+    xlim([0, niters]);
+    
+    % legend
+    % legend('FontSize', 14, 'Location', 'NorthOutside', 'NumColumns', 4, 'Box', 'off')
+    
+    % Title
+    title('Linear Velocity Y Difference', 'FontSize', 14);
+    hold off;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    % LINEAR VELOCITY IN Z
+    % We create the figure and set the parameters
+    subplot(3,1,3);
+    % figure
+    % set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    box on
+    hold on
+    grid on
+    
+    % Representation
+    for i = 1:N
+        plot(prop_vs_cbf(3*i,:) - vs_cbf(3*i,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('CBF vel Agent %i',i));
+    end
+    
+    % Titles and dimensions
+    set(gca, 'FontSize', 16, 'FontName', plotaxfont); 
+    xlabel('Time (s)', 'FontSize', 18)
+    ylabel('Linear velocity diff in Z (m/s)', 'FontSize', 18)
+    
+    xlim([0, niters]);
+    
+    % legend
+    % legend('FontSize', 14, 'Location', 'NorthOutside', 'NumColumns', 4, 'Box', 'off')
+    
+    % Title
+    title('Linear Velocity Z Difference', 'FontSize', 14);
+    hold off;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    % LINEAR VELOCITY NORM
+    % We create the figure and set the parameters
+    figure
+    set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
+    box on
+    hold on
+    
+    % Representation
+    for i = 1:N
+        plot(prop_nvs_cbf(i,:) - nvs_cbf(i,:), 'color', color_robots(i), 'linewidth', 2, 'DisplayName', sprintf('CBF vel Agent %i',i));
+    end
+    
+    % Titles and dimensions
+    set(gca, 'FontSize', 16, 'FontName', plotaxfont); 
+    xlabel('Time (s)', 'FontSize', 18)
+    ylabel('Linear velocity norm (m/s)', 'FontSize', 18)
+    
+    xlim([0, niters]);
+    
+    % legend
+    legend('FontSize', 14, 'Location', 'NorthOutside', 'NumColumns', 4, 'Box', 'off')
+    
+    % Title
+    title('Linear Velocity Norm Difference', 'FontSize', 14);
+    hold off;
+
+end
+
+%% Velocity comparation
 
 if plotVelComp
 
@@ -820,24 +1179,171 @@ if plotVelComp
     plot(nvs(1,:)');
     hold on;
     plot(nvs_cbf(1,:)');
+    if realCBF
+        plot(prop_nvs_cbf(1,:)');
+    end
     hold off;
     title("Velocity Norm Comparison");
     xlabel("Iters");
     ylabel("m/s");
     % legend(["Agend 1 - std", "Agend 2 - std", "Agend 3 - std", "Agend 4 - std", "Agend 1 - cbf", "Agend 2 - cbf", "Agend 3 - cbf", "Agend 4 - cbf"]);
-    legend(["Agend 1 - std", "Agend 1 - cbf"]);
+    if realCBF
+        legend(["Agend 1 - std", "Agend 1 - cbf", "Agent 1 - Proposed cbf"]);
+    else
+        legend(["Agend 1 - std", "Agend 1 - cbf"]);
+    end
+
 end
 
-%% Plot stresses
-if plotStresses
+%% Plot von Mises maximum ------> Curr VM
+if plotVonMisesMax
     figure;
-    
-    plot(max(vm_stresses),'Color','b','DisplayName', "currStress");
     hold on;
-    plot(repelem(yield_stress/SF,size(vm_stresses,2)),'Color', 'r', 'DisplayName', "maxStress");
+    for a = 1:N
+        plot(max(vm_stresses),'Color','b');
+    end
     hold off;
-    title("Von Mises Stress Comp");
-    legend("show");
+    title("Maximum Von Mises per iteration");
     xlabel("Iters");
-    ylabel("Pa");
+    ylabel("von Mises Stress (PA)");
+    grid on;
+    legend("MaxVonMises");
+
+    % % Cube plot
+    % VMEvolFig = figure;
+    % h = trisurf(omesh.elements, Pob0(1,:)', Pob0(2,:)', Pob0(3,:)', 'EdgeColor', 'none');
+    % colormap(jet); colorbar; caxis([min(vm_stresses(:)) max(vm_stresses(:))]);
+    % figure(VMEvolFig);
+    % 
+    % for iter = 1:niters
+    % 
+    %     h.CData = vm_stresses(:,iter);
+    %     title(sprintf('VM Stress Evolution - Iteration %d', iter));
+    %     drawnow;
+    %     pause(0.25); % Adjust speed
+    % end
+end
+
+
+%% Plot Stress Differences
+
+if plotVMStressDiff
+
+    % Reshape data: (nodes x iterations)
+    vm_diff_matrix = reshape(vonMises_diffs, [], niters);
+    
+    % 3D plot
+    [NodeGrid, IterGrid] = meshgrid(1:size(vonMises_diffs,1), 1:niters);
+    
+    figure;
+    surf(IterGrid, NodeGrid, vm_diff_matrix');
+    xlabel('Iteration');
+    ylabel('Node Index');
+    zlabel('Stress Difference (Pa)');
+    title('3D Stress Difference Surface - (σ_c_u_r_r VS σ_p_r_e_d)');
+    shading interp;
+
+    % Max over Min
+    max_diff = squeeze(max(vonMises_diffs, [], 1));
+    min_diff = squeeze(min(vonMises_diffs, [], 1));
+    mean_diff = squeeze(mean(vonMises_diffs, 1));
+    
+    figure;
+    plot(max_diff, 'r', 'LineWidth', 2); hold on;
+    plot(min_diff, 'b', 'LineWidth', 2);
+    plot(mean_diff, 'k--', 'LineWidth', 2);
+    xlabel('Iteration');
+    ylabel('Stress Difference (Pa)');
+    legend('Max', 'Min', 'Mean');
+    title('Aggregate Stress Differences Predicted vs Real Over Time');
+
+    % % Cube plot
+    % VMDIFEvolFig = figure;
+    % h = trisurf(omesh.elements, Pob0(1,:)', Pob0(2,:)', Pob0(3,:)', 'EdgeColor', 'none');
+    % colormap(jet); colorbar; caxis([min(vonMises_diffs(:)) max(vonMises_diffs(:))]);
+    % 
+    % for iter = 1:niters
+    %     h.CData = vonMises_diffs(:,iter);
+    %     title(sprintf('Current VS Predicted - Iteration %d', iter));
+    %     drawnow;
+    %     pause(0.1); % Adjust speed
+    % end
+
+end
+
+%% Plot VM Stress Comparison
+if plotVMStressComp
+    % This plot the differences between the maximum value of the von Mises
+    % stress during the simulation
+    figure;
+    plot(max(vm_stresses),'Color','b','DisplayName', "CBF - Max VMStress (σ_c_u_r_r)", 'linewidth', 2);
+    hold on;
+    plot(repelem(yield_stress/SF,size(vm_stresses,2)),'Color', 'r', 'DisplayName', "Yield Stress (σ_y_i_e_l_d)", 'linewidth', 2);
+    plot(max(pred_vmStress),'Color','g','DisplayName',"CBF - Max Pred VMStres (σ_p_r_e_d)", 'linewidth', 2);
+    plot(max(vmStresses_3D),'Color',[1 0.5 0],'DisplayName',"3D Control - Max VMStress (σ_3_D)", 'linewidth',2);
+    hold off;
+    xlabel('Iteration');
+    ylabel('VM Stress');
+    title('Von Mises Stress Comparison');
+    legend show;
+    grid on;
+end
+
+%% Plot h Function Values
+max_stresses = ones(size(vm_stresses))*(yield_stress/SF);
+hs = max_stresses - vm_stresses;
+if plotHsCBF
+
+    % Full values plot
+    figure;
+    plot(hs);
+    title('CBF h - (σ_m_a_x - σ_c_u_r_r)');
+    xlabel('Iteration');
+    ylabel('VM Stress (Pa)');
+    grid on;
+
+    % Most representative values plot
+    figure;
+    plot(max(hs),'DisplayName', "max", 'Color','r', 'LineWidth', 2);
+    hold on;
+    plot(min(hs),'DisplayName', "min", 'Color','b', 'LineWidth', 2);
+    plot(mean(hs),'DisplayName', "mean", 'Color', 'black', 'LineWidth', 2, 'LineStyle',':');
+    legend show;
+    title('CBF h - (σ_m_a_x - σ_c_u_r_r)');
+    xlabel('Iteration');
+    ylabel('VM Stress (Pa)');
+    grid on;
+
+    
+end
+
+
+%% Plot Gradient of h
+if plotGradsHCBF
+    % Full Values plot
+    figure;
+    plot(grads_hs);
+    title('Grad_h - Au_c_b_f');
+    xlabel('Iteration');
+    ylabel('VM Stress (Pa)');
+    grid on;
+
+    % Most representative values comparison with h
+    figure;
+    % H
+    plot(max(hs),'DisplayName', "h_m_a_x", 'Color','r', 'LineWidth', 2, 'LineStyle',':');
+    hold on;
+    plot(min(hs),'DisplayName', "h_m_i_n", 'Color','b', 'LineWidth', 2, 'LineStyle',':');
+    plot(mean(hs),'DisplayName', "h_m_e_a_n", 'Color', 'black', 'LineWidth', 2, 'LineStyle',':');
+
+    % grad_h
+    plot(max(grads_hs),'DisplayName', "gradh_m_a_x", 'Color','r', 'LineWidth', 2);
+    plot(min(grads_hs),'DisplayName', "gradh_m_i_n", 'Color','b', 'LineWidth', 2);
+    plot(mean(grads_hs),'DisplayName', "gradh_m_e_a_n", 'Color', 'black', 'LineWidth', 2);
+    legend show;
+    title('CBF h VS grad_h');
+    xlabel('Iteration');
+    ylabel('VM Stress (Pa)');
+    grid on;
+
 end
