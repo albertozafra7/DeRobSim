@@ -1,170 +1,139 @@
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% %%%%%%%%%%%%%%%%%%%%%%% CUBE MESH %%%%%%%%%%%%%%%%%%%%%%%
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-clear;
-close all;
-clc; 
+clear; close all; clc; 
 
-%% General Script configuration
-% Trajectory config
-waypoints = false;
-rotation_z = false;
-having_obstacles = false;
-moveNdim = 3; % 1 -> Movement in X; 2 -> Movement in X and Y; 3 -> Movement in 3D
-
-% If we want to use the Control Barrier Functions
-forceCBF = false;
-realCBF = true;
-
-% If we want to plot the control results
-plotLiveCBF = true;
-plotLiveVonMises = false;
-plotVonMisesMax = true;
-plotTetramesh = false;
-plotCResults = false;
-plotCResultsCBF = false;
-plotCBFDifferences = true;
-plotCBFParams = true;
-plotControlOutputs = false;
-plotCBFVelCorr = false;
-plotCBFVelDiff = false;
-plotVelComp = false;
-plotStresses = true;
-plotVMStressDiff = true;
-plotVMStressComp = true;
-plotHsCBF = true;
-plotGradsHCBF = true;
-
-%% We add the paths of the folder and subfolders we will need.
-
-load('.\Experiments\Forces\MatlabInteractiveTests\JacobianUnitaryCube.mat');
-clear agent_actions mesh_model n_experiments particle_displacements vonMisesValues;
-
+%% Add path of the aux files
 Aux_path = genpath('Multirobot_control_3D_aux_files');
-if(isempty(Aux_path))
-    disp('WARNING: Cannot find utilities directory.  This script should be run from the base directory.')
-else
+if(~isempty(Aux_path))
     addpath(Aux_path)
 end
 
+%% Configuration Flags
+% Trajectory Config
+use_waypoints = false;          % (Only usable in 3D) uses the waypoints to recreate the obstacle avoidance
+use_rotation_z = false;         % Rotates in the Z axis the final position
+use_obstacles = false;          % (Only usable when live CBF is activated) Represents visually the obstacles
+moveNdim = 3;                   % 1 -> Movement in X; 2 -> Movement in X and Y; 3 -> Movement in 3D
 
-%% Create plotting and video
-% Viewing angles for the 3D plot
-view_1 = 0; % 110 deg
-view_2 = 90;  % 29 deg
-view_1 = 14.1759;
-view_2 = 18.4354;
-save_plots = false;
+% Control Barrier Funtcions Config
+force_CBF = false;              % Gives an arbitrary value to A or b in CBF to force the CBF condition
+use_real_CBF = true;            % Applies the real conditions of CBF to evaluate the system
+
+
+%%%%%%%% Plots %%%%%%%%
+% Object Plot
+plot_Tetramesh = false;         % Plots the tetrahedral mesh of the object
+
+% Simulation Real-time Plot
+plot_LiveVonMises = false;      % Opens a GUI plotting the stress evolution during the simulation
+plot_LiveCBF = true;            % Opens a GUI plotting the simulation evolution
+
+% Control Results Plot
+plot_ControlOutputs_3D = false; % Plots the Controllers individual outputs
+plot_CResults_3D = true;        % Plots the control results of the standard 3D controller (trajectory, individual positions, individual velocities, velocity norms, control errors)
+plot_CResults_CBF = true;       % Plots the control results of the CBF 3D controller (trajectory, individual positions, individual velocities, velocity norms, control errors)
+
+% Specific CBF Plots
+plot_CBF_Conditions = true;     % Plots the conditions of the CBF 3D controller (Au vs b)
+plot_Hs_CBF = true;             % Plots the h funtion values (in this case h = (γ x σ_yield - σ_current)
+plot_GradsH_CBF = true;         % Plots the gradient of h values (in this case grad_h = (δ x σ_pred)/(2 x σ_current)
+
+% Specific Vel CBF Plots
+plot_CBF_VelCorr = true;        % Plots the correlation between the proposed velocity (the one from the 3D controller) and the real velocity applied (the one of the CBF)
+plot_CBF_VelDiff = false;       % Plots the difference (prop_vs - vs) between the proposed velocity and the applied velocity
+plot_VelComp = true;            % Plots the comparison between the norm of the proposed velocity, the applied velocity and the real 3D controller velocity
+
+% Specific Stress Plots
+plot_VonMisesMax = true;        % Plots the Maximum values of Von Mises recorded in each instance
+plot_VMStressDiff = true;       % Plots the Difference between the real Von Mises Stress and the Predicted Von Mises Stress
+plot_VMStressComp = true;       % Plots the comparison between the yield stress (σ_yield), the 3D controller stress (σ_3D), the predicted stress (σ_pred) and the real current stress (σ_curr)
+
+% Saving plots
+save_plots = false;             % Determines wether to save the plots or not
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% Choice of general conditions of the simulation
+%% Simulation Parameters
+% Standard Parameters
+N = 8;                          % Number of robots
+ndims = 3;                      % Number of dimensions
 
-ob_type = 1;            % select type of object: 1 for sheet, 2 for linear (rod, cable)
-with_object = 0;        % 0: simulation without object; 1: with object
-with_obstacles = 0;     % 0: without obstacles; 1: with obstacles
-with_waypoints = 0;     % 0: without waypoints; 1: with waypoints
+% Time parameters - The simulated time in seconds will be nit*dt
+dt = 0.01;                      % Time step of the simulation (s)
 
-show_figures = 1;       % 0: does not show figures during execution; 1: shows them
-show_rest_shape = 0;    % 1: plots the object's rest shape and node indexes (we can use this plot to define the nodes where the robots are placed)
-
-save_variables = 0;     % 0: does not save variables; 1: save simulation results; 2: save Robotarium results
-    variables_name = 'var_mattress_K_with_G';
-save_plots = 0;         % 0: does not save plots; 1: save plots
-save_frames = 0;        % 0: does not save frames for the video; 1: save frames
-make_video = 0;         % 0: does not make a video; 1: makes it
-    v_name = 'vid_mattress_K_with_G';    % video file name
-create_folder = 0;      % 0: does not create a folder; 1: creates a folder
-    f_name = 'mattress_K_with_G';     % folder name for storing the results 
-    
-if create_folder == 1
-    folder_result = strcat('./Object_',string(ob_type),'_',f_name,'_sim','/');  % it's a path
-    if exist(char(folder_result),'dir') == 0                            % 'dir' - Just folders
-       mkdir(char(folder_result));                                      % create the folder
-    end
+% Number of iterations of the control loop
+switch moveNdim
+    case 1
+        niters = 300;
+    case 2
+        niters = 500;
+    otherwise
+        niters = 700;
 end
 
+if use_waypoints 
+    niters = 1600;
+end
 
-%% Choice of general parameters of the simulation
+% Physical parameters
+E = 3000;                       % Young Modulus (Pa)
+nu = 0.01;                      % Poisson Ratio (Unitless) [-0.1,0.5]
+kext = 10;                      % External forces stiffness (N/m)
+yield_stress = 210e2;           % Yield Stress (Pa)
+SF = 2.5;                       % Safety Factor (Unitless)
+u_sat = 1.5;                    % Velocity Saturation Value (m/s)
 
-N = 8; % number of robots
-ndims = 3; % Number of dimensions
+% Load the Precomputed Jacobian Matrix
+% load('.\Experiments\Forces\MatlabInteractiveTests\JacobianUnitaryCube.mat');
+load('.\Experiments\Forces\MatlabInteractiveTests\JacobianProgramaticallyTest.mat');
+clear agent_actions mesh_model n_experiments particle_displacements vonMisesValues;
 
-% We define some matrices we will use in our formulation
-K = kron(eye(N) - (1/N)*ones(N,N), eye(3)); % centering matrix (3*Na x 3*Na)
+% Matrices for control formulation
+K = kron(eye(N) - (1/N)*ones(N,N), eye(3)); % Centering Matrix (3*Na x 3*Na)
 S = [0 -1; 1 0];
 T = kron(eye(N),S);
 
-% Time parameters - The simulated time in seconds will be nit*dt
-dt = 0.01;      % time step of the simulation
-niters = 700;%1600;  % number of iterations of the control loop
+% Viewing angles for the 3D plot
+view_1 = 14.1759;
+view_2 = 18.4354;
 
-% Physical parameters
-E = 3000; % Young Modulus (Pa)
-nu = 0.01; % Poisson Ratio (Unitless) [-0.1,0.5]
-kext = 10; % Stiffness off the external forces (N/m)
-yield_stress = 210e2; % Yield Stress (Pa)
-% SF = 0.0005;
-SF = 2.5;%1.5;%0.8; % Safety Factor (Unitless)
+%% Control Gains
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+% Gain values for the control
+k_H = 50;        % for moving toward shape-preserving transformation
+k_G = 5;         % for moving toward a configuration consistent with our deformation modes
+k_c = 1;         % for centroid translation
+k_s = 50;        % for scaling
+k_Hd = 1.5;      % for scaling and orientation
+kCBF = 1;        % for controllig the stress avoidance influence
+cbf_alpha = 1;   % for controlling the risks taken by the barrier function
 
-%% We define the object's nodes arranged in a rectangular grid
+% Target formation scale and rotation
+sd = 1;          % Target Scale (1 = no change)
+thd = 0;         % Target Rotation (0 = no change)
 
-nx = 5; % number of nodes in x direction of the grid
-ny = 5;% number of nodes in y direction of the grid
-nz = 5; % number of nodes in z direction of the grid
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-sx = 1; % length of the object in x direction (in the graphics, it will be the 'y' direction)
-sy = 1; % length of the object in y direction (only relevant if ob_type = 1) (in the graphics, it will be the x direction)
-sz = 1; % length of the object in z direction
+%% Object Mesh
 
-% We need to reduce the defined object for the Robotarium experiment because its
-% working area is smaller.
-scale_ob = 1;
+nx = 5; ny = 5; nz = 5;         % Grid nodes in x, y, z directions
+sx = 1; sy = 1; sz = 1;         % Object dimensions (m)
+scale_ob = 1;                   % Object scale factor
 
 omesh = create_mesh3D(nx, ny, nz, sx * scale_ob, sy * scale_ob, sz * scale_ob); % mesh of the object: its shape and the links between nodes
-% We put the object over the Z axis (which means that the lowest part of
-% the body will be at 0 or over, regarding the Z axis, so it does not go
-% under the floorte
-omesh.shape = omesh.shape + [0, 0, -1*(min(omesh.shape(:,3))<0)*min(omesh.shape(:,3))];
+omesh.shape = omesh.shape + [0, 0, -1*(min(omesh.shape(:,3))<0)*min(omesh.shape(:,3))]; % We put the object over the Z axis (which means that the lowest part of the body will be at 0 or over, regarding the Z axis, so it does not go under the floor
 
-if plotTetramesh
+% Object Plot
+if plot_Tetramesh
     figure;
     tetramesh(omesh.elements, omesh.shape);
 end
 
-%% Get the tetrahedrons
-% X = omesh.shape(:,1);
-% Y = omesh.shape(:,2);
-% Z = omesh.shape(:,3);
-% 
-% shp = alphaShape(X(:), Y(:), Z(:));
-% surfTriangles = boundaryFacets(shp);
-% gm = fegeometry([X(:), Y(:), Z(:)], surfTriangles);
-% model = femodel(AnalysisType="structuralStatic", Geometry=gm);
-% model.MaterialProperties = materialProperties(YoungsModulus=210e10, PoissonsRatio=0.3, MassDensity=2.7e-6);
-% model = generateMesh(model, GeometricOrder="linear");
-% % initialTetPositions = model.Geometry.Mesh.Nodes'; % Transpose for [x, y, z] format
-% 
-% %% Save the new mesh data in omesh
-% % omesh contains the node positions (
-% 
-% % Node positions
-% omesh.shape = model.Geometry.Mesh.Nodes'; % (Npx3)
-% omesh.shape = omesh.shape + [0, 0, -1*(min(omesh.shape(:,3))<0)*min(omesh.shape(:,3))];
-% % Mesh Model
-% omesh.meshModel = model;
-% % Mesh Tetrahedra
-% omesh.elements = model.Geometry.Mesh.Elements'; % (Ntetx4)
-
-%% Definition of reference, initial and target configurations
-
-% We define the parameters of the initial and desired configurations
-% (centroids, scales and orientations) for each experiment in order to
-% make it easier to select them.
-
+%% Initial Configurations
 % Initial node positions
-initialTetPositions = omesh.shape; % (Npx3)
 Pob0 = omesh.shape'; % (3xNp)
 
 % Agent's Initial Positions (Each one at a vertex of the object)
@@ -179,7 +148,6 @@ p_init = [ 0.5,  0.5,  1.0;... % Agent 1
 
 % Object's Initial Centroid Position (Mean of the Agent's positions for this problem)
 g0 = mean(p_init)'; % (3x1)
-
 g0_rep = repmat(g0',N,1);
 p_agentsFrom_g0 = p_init - g0_rep; % (Nax3)
 
@@ -188,9 +156,43 @@ p_agentsFrom_g0 = p_init - g0_rep; % (Nax3)
 s0 = 1; % No scaling
 
 % Initial Rotation Angles
-th0_x = 0*pi/180; % All set to 0 rad
+th0_x = 0*pi/180;
 th0_y = 0*pi/180;
 th0_z = 0*pi/180;
+
+% We define the initial configuration
+p_init = reshape(p_init', [3*N, 1]); % (3*Na x 1)
+p00 = K * p_init; % (3*Na x 1)
+R0 = eul2rotm([th0_x th0_y th0_z], 'XYZ');
+R0 = kron(eye(N), R0);
+p0 = (s0 * R0 * p00) + reshape(g0 * ones(1,N), [3*N,1]); % (3*Na x 1)
+
+% We define the reference configuration, c
+c = K * p00; % We want to preserve its shape
+c = K * c; % Reference Configuration with centroid at (0,0) % (3*Na x 1)
+
+% Initial positions of the robots
+p_3D = p0;      % p matrix 3Nx1
+p_cbf = p0;     % p_cbf matrix 3Nx1
+
+%% Desired Configurations
+% Desired Scale Factor
+sd0 = 1; % No Change
+
+% Desired Rotation Angles
+thd0_x = 0*pi/180;    % 0 deg
+thd0_y = 0*pi/180;    % 0 deg
+if use_rotation_z
+    thd0_z = -180*pi/180; % Rotation of 180 deg in the Z axis
+else
+    thd0_z = 0*pi/180;
+end
+
+% We define the desired initial configuration
+Rd0 = eul2rotm([thd0_x thd0_y thd0_z], 'XYZ');
+Rd0 = kron(eye(N), Rd0);
+pd = (sd0 * Rd0 * c); % Desired Initial Configuration
+
 
 switch moveNdim
     case 1
@@ -207,54 +209,20 @@ switch moveNdim
         gd_final = gd; % Used later in the control logic (waypoint handling)
 end
 
-% Desired Scale Factor
-sd0 = 1; % No Change
 
-% Desired Rotation Angles
-thd0_x = 0*pi/180;    % 0 deg
-thd0_y = 0*pi/180;    % 0 deg
-if rotation_z
-    thd0_z = -180*pi/180; % Rotation of 180 deg in the Z axis
-else
-    thd0_z = 0*pi/180;
-end
-
-%% Definition of the initial configuration
-% We define the initial configuration
-p_init = reshape(p_init', [3*N, 1]); % (3*Na x 1)
-p00 = K * p_init; % (3*Na x 1)
-R0 = eul2rotm([th0_x th0_y th0_z], 'XYZ');
-R0 = kron(eye(N), R0);
-p0 = (s0 * R0 * p00) + reshape(g0 * ones(1,N), [3*N,1]); % (3*Na x 1)
-
-% We define the reference configuration, c
-c = K * p00; % We want to preserve its shape
-c = K * c; % reference configuration with centroid at (0,0) % (3*Na x 1)
-
-% We define the desired configuration
-Rd0 = eul2rotm([thd0_x thd0_y thd0_z], 'XYZ');
-Rd0 = kron(eye(N), Rd0);
-pd = (sd0 * Rd0 * c);
-
-%% Desired Set-Up of the agents
-% Target formation scale and rotation. Since we have already rotated and scaled
-% pd when we defined it above, then we can select sd = 1 and thd = 0.
-sd = 1;
-thd = 0;            
+% Rotation Matrix Desired Configuration
 Rd = eul2rotm([thd thd thd], 'XYZ');
-Rd_final = Rd;
 Rd_T = kron(eye(N), Rd);
-H_kd = sd * Rd; % we need this matrix to control the rotation
 PT = (sd * Rd_T * pd) + reshape(gd * ones(1,N), [3*N,1]);     % final configuration with centroid in gd (3*Na x 1)
 
 % Control terms are calculated with c. As the code is defined here, we can
 % replace c with pd in the control terms code or do the following:
-c = K * PT; % (3*Na x 1)
+c = K * PT; % Desired centroid config (3*Na x 1)
 
 
 %% Waypoints definition
 
-if waypoints
+if use_waypoints
     num_waypoint = 1;
     
     % First waypoint
@@ -295,86 +263,48 @@ if waypoints
 end
 
 %% Obtacles definition
-if having_obstacles
+if use_obstacles
     % Internal wall
-    r1 = 0.2;   
-    initial_point1 = g0 + [-1.35+r1; 1.5; -0.15];
-    second_point1 = g0 + [-1.35+r1; -1.2; -0.15];
-    third_point1 = g0 + [-1.35-r1; -1.2; -0.15];
-    final_point1 = g0 + [-1.35-r1; 1.5; -0.15];
-    points = initial_point1;
-    obstacles = [];
-    
-    while points(2) > second_point1(2)
-        obstacles = [obstacles, points];
-        points(2) = points(2) - 0.1;
+    r1 = 0.2;
+    center1 = g0 + [-1.35, -1.2, -0.15];
+    th1 = linspace(0, 2*pi, 20);
+    obstacles1 = zeros(3, length(th1));
+    for i = 1:length(th1)
+        obstacles1(1,i) = center1(1) + r1 * cos(th1(i));
+        obstacles1(2,i) = center1(2) + r1 * sin(th1(i));
+        obstacles1(3,i) = center1(3);
     end
-    
-    obstacles = [obstacles, points, second_point1];
-    
-    for th1 = pi:pi/5:2*pi
-        points(2) = r1 * sin(th1) + g0(2) - 1.2;
-        points(1) = -r1 * cos(th1) + g0(1) - 1.35;
-        obstacles = [obstacles, points];
-    end
-    
-    obstacles1 = [obstacles, third_point1, final_point1];
-    
     % External wall
-    r2 = 2.5;   
-    initial_point2 = g0 + [-1.35+r2; -1.2; -0.15];
-    final_point2 = g0 + [-1.35-r2; -1.2; -0.15];
-    points = initial_point2;
-    obstacles = g0 + [-1.35+r2; 1.5; -0.15];
-    
-    for th2 = 2*pi:-pi/10:pi
-        obstacles = [obstacles, points];
-        points(2) = r2 * sin(th2) + g0(2) - 1.2;
-        points(1) = r2 * cos(th2) + g0(1) - 1.35;               
+    r2 = 2.5;
+    center2 = g0 + [-1.35, -1.2, -0.15];
+    th2 = linspace(0, 2*pi, 40);
+    obstacles2 = zeros(3, length(th2));
+    for i = 1:length(th2)
+        obstacles2(1,i) = center2(1) + r2 * cos(th2(i));
+        obstacles2(2,i) = center2(2) + r2 * sin(th2(i));
+        obstacles2(3,i) = center2(3);
     end
-    
-    obstacles2 = [obstacles, final_point2, g0 + [-1.35-r2; 1.5; -0.15]];
 end          
 
-%% Initial conditions of the simulation and required simulation parameters
-
-% Initial positions of the robots
-p = p0;         % p matrix 3Nx1
-p_cbf = p0;     % p_cbf matrix 3Nx1
-
-% Velocity limit value
-u_sat = 1.5;    % m/s
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Gain values for the control
-k_H = 50;        % for moving toward shape-preserving transformation
-k_G = 5;         % for moving toward a configuration consistent with our deformation modes
-k_c = 1;         % for centroid translation
-k_s = 50;        % for scaling
-k_Hd = 1.5;      % for scaling and orientation
-kCBF = 1;        % for controllig the stress avoidance influence
-cbf_alpha = 1;   % for controlling the risks taken by the barrier function
+%% Storage Arrays Initialization
+% Standard 3D Controller
+ps_3D = [];             % Positions of the standard 3D controller
+gammas_H_3D = [];       % Cost relative to shape-preserving transformation
+gammas_G_3D = [];       % Cost relative to configuration consistent with our deformation modes
+egs_3D = [];            % Centroid errors
+ess_3D = [];            % Scale errors
+eths_3D = [];           % Rotation eror
+eth_xs_3D = [];         % X angle errors
+eth_ys_3D = [];         % Y angle errors
+eth_zs_3D = [];         % Z angle errors
+vs_3D = [];             % Linear velocities
+nvs_3D = [];            % Linear velocities norm
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% Each of the following will be a growing array that will store the values of variables at each iteration
-ps = [];                % positions
-gammas_H = [];          % cost relative to shape-preserving transformation
-gammas_G = [];          % cost relative to configuration consistent with our deformation modes
-hs = [];                % parameters of the optimal shape-preserving transformation
-egs = [];               % centroid errors
-ess = [];               % scale errors
-eths = [];              % rotation eror
-eth_xs = [];            % x angle errors
-eth_ys = [];            % y angle errors
-eth_zs = [];            % z angle errors
-dx_unis = [];           % unicycle velocities
-vs = [];                % linear velocities
-nvs = [];               % linear velocities norm
-vm_stresses = [];       % von Mises stresses
-tensor_stresses = [];   % stress tensors
-u_Hs = [];              % shape-preserving control (UH)
+% Control Results
+u_Hs = [];              % Shape-preserving control (UH)
 u_Gs = [];              % Deformation Control (UG)
 U_ss = [];              % Scale Control (US)
 u_cs = [];              % Position Control (Uc)
@@ -383,54 +313,61 @@ u_cbfs = [];            % Control Barrier Functions
 us = [];                % Final Control Outputs (U_f)
 
 % CBF
-ps_cbf = [];            % positions with the barrier function
-prop_nvs_cbf = [];      % desired linear velocities norm CBF (Before the CBF)
-prop_vs_cbf = [];       % desired linear velocities (Befor the CBF)
-nvs_cbf = [];           % linear velocities norm CBF
-vs_cbf = [];            % linear velocities
+ps_cbf = [];            % Positions with the barrier function
+prop_nvs_cbf = [];      % Desired linear velocities norm CBF (Before the CBF)
+prop_vs_cbf = [];       % Desired linear velocities (Befor the CBF)
+nvs_cbf = [];           % Linear velocities norm CBF
+vs_cbf = [];            % Linear velocities
 As = [];                % Left side of the optimization condition
 bs = [];                % Right side of the optimization condition
-gammas_H_cbf = [];      % cost relative to shape-preserving transformation
-gammas_G_cbf = [];      % cost relative to configuration consistent with our deformation modes
-egs_cbf = [];           % centroid errors
-ess_cbf = [];           % scale errors
-eths_cbf = [];          % rotation eror
-eth_xs_cbf = [];        % x angle errors
-eth_ys_cbf = [];        % y angle errors
-eth_zs_cbf = [];        % z angle errors
-grads_hs = [];          % gradients of the h function of the cbf
-opt_hs = [];            % record of the h function of the cbf
+gammas_H_cbf = [];      % Cost relative to shape-preserving transformation
+gammas_G_cbf = [];      % Cost relative to configuration consistent with our deformation modes
+egs_cbf = [];           % Centroid errors
+ess_cbf = [];           % Scale errors
+eths_cbf = [];          % Rotation eror
+eth_xs_cbf = [];        % X angle errors
+eth_ys_cbf = [];        % Y angle errors
+eth_zs_cbf = [];        % Z angle errors
+grads_hs = [];          % Gradients of the h function of the cbf
+opt_hs = [];            % Record of the h function of the cbf
 
 % Stress Related things
-pred_strains_cbf = [];  % record of the predicted strains produced on the cbf control
-strains_cbf = [];       % record of the strains produced on the cbf control
-pred_stresses_cbf = []; % record of the predicted stress tensors produced on the cbf control
-pred_vmStresses_cbf =[];% record of the predicted von Mises stresses produced on the cbf control
-scaled_deltas = [];     % record of the von Mises derivative produced on the cbf control
-nodal_disp_cbf = [];    % record of the nodal displacements produced on the cbf control
-vmStresses_3D = [];     % record of the nodal von Mises stress of the 3D controller
-StressTensors_3D = [];  % record of the nodal stress tensors of the 3D controller
+% CBF
+vm_stresses_cbf = [];   % Von Mises stresses CBF control
+u_hats_cbf = [];        % Record of the element displacements on the CBF control
+element_disps_cbf = []; % Record of the element displacements predicted on the CBF control
+tensor_stresses_cbf= [];% Stress tensors CBF control
+pred_strains_cbf = [];  % Record of the predicted strains produced on the cbf control
+strains_cbf = [];       % Record of the strains produced on the cbf control
+elem_stresses_cbf = []; % Record of the element stresses produced on the cbf control
+pred_stresses_cbf = []; % Record of the predicted stress tensors produced on the cbf control
+pred_vmStresses_cbf =[];% Record of the predicted von Mises stresses produced on the cbf control
+scaled_deltas_cbf = []; % Record of the von Mises derivative produced on the cbf control
+pred_elem_stresses_cbf = [];% Record of the predicted element stress tensors produced on the cbf control
+% 3D Controller
+u_hats_3D = [];         % Record of the element displacements on the 3D control
+strains_3D = [];        % Record of the strains produced on the 3D control
+element_disps_3D = [];  % Record of the element displacements predicted on the 3D control
+vm_stresses_3D = [];    % Record of the nodal von Mises stress of the 3D controller
+tensors_stresses_3D =[];% Record of the nodal stress tensors of the 3D controller
+scaled_deltas_3D = [];  % Record of the von Mises derivative produced on the 3D control
+pred_strains_3D = [];   % Record of the predicted strains produced on the 3D control
+elem_stresses_3D = [];  % Record of the element stresses produced on the 3D control
+pred_stresses_3D = [];  % Record of the predicted stress tensors produced on the 3D control
+pred_vmStresses_3D = [];% Record of the predicted von Mises stresses produced on the 3D control
+pred_elem_stresses_3D = [];% Record of the predicted element stress tensors produced on the 3D control
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% For creating the video:
-ind_im = 1;     % index of images (used for creation of video)
-fps = 20;       % frames per second for the video
-% Create figure from which we will create the video frames
-if show_figures == 0
-    video = figure(20);
-    set(video, 'visible', 'off')
-end
-
-%% Plotting
+%% Plotting Setup
 
 plotaxfont='Helvetica';
 color_robots = ["#D80909", "#414FD7", "#179115", "#EE0DC8", "#CF7F04", "#727272", "#26acb1", "#9769d7", "#D80909", "#414FD7", "#179115", "#EE0DC8", "#CF7F04", "#727272", "#26acb1", "#9769d7"]; % 14 robots
 color_graphs = ["#0073bd", "#77a5c3", "#d9541a", "#edb120", "#7e2f8e"];
 
 % Limits
-if having_obstacles
+if use_obstacles
     x_limit = [-3.1 1.9];
     y_limit = [-3.1 1.45];
     z_limit = [0 3];
@@ -446,7 +383,8 @@ y_limit = y_limit* zoom_factor;
 z_limit = z_limit * zoom_factor;
 
 
-if plotLiveVonMises
+% For seeing the von mises stress in real-time
+if plot_LiveVonMises
     vonMises_fig = figure;
     set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
     hold on
@@ -454,8 +392,8 @@ if plotLiveVonMises
     view(64.3440,35.9240);
 end
 
-if plotLiveCBF
-
+% For seeing the simulation in real time
+if plot_LiveCBF
     trajectory_fig = figure;
     set(gcf, 'Position',  [300, 50, 1000, 650], 'color','w')
     hold on
@@ -478,7 +416,7 @@ if plotLiveCBF
 end
 
 
-
+%% Animate the Connections between the agents
 
 % Create animation (Considering only 2 layers of Agents)
 pairs = [];
@@ -496,32 +434,32 @@ end
 pairs = [pairs; [1 7]; [2 8]; [3 5]; [4 6]];
 %%%
 
-
-if plotLiveCBF
+%% Plotting the initial positions of the agent
+if plot_LiveCBF
     figure(trajectory_fig);
     % Initial, target and current positions
     for i = 1:N
         plot3(p0(3*i-2,1), p0(3*i-1,1), p0(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 15);
         plot3(PT(3*i-2,1), PT(3*i-1,1), PT(3*i,1), 'o', 'color', color_robots(i), 'MarkerSize', 7, 'LineWidth', 1.5);
-        robot_tr(i) = plot3(p(3*i-2,1), p(3*i-1,1), p(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 30);
-        robot_path(i) = plot3(p(3*i-2,:), p(3*i-1,:), p(3*i,:), '-', 'color', color_robots(i), 'linewidth', 2); % data.path lines
+        robot_tr(i) = plot3(p_3D(3*i-2,1), p_3D(3*i-1,1), p_3D(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 30);
+        robot_path(i) = plot3(p_3D(3*i-2,:), p_3D(3*i-1,:), p_3D(3*i,:), '-', 'color', color_robots(i), 'linewidth', 2); % data.path lines
     end
     % Lines between robots
     for i = 1:size(pairs,1)
         plot3([p0(3*pairs(i,1)-2), p0(3*pairs(i,2)-2)], [p0(3*pairs(i,1)-1), p0(3*pairs(i,2)-1)], [p0(3*pairs(i,1)), p0(3*pairs(i,2))], '--', 'color', [0.5 0.5 0.8], 'linewidth', 1.5, 'HandleVisibility', 'off');
         plot3([PT(3*pairs(i,1)-2), PT(3*pairs(i,2)-2)], [PT(3*pairs(i,1)-1), PT(3*pairs(i,2)-1)], [PT(3*pairs(i,1)), PT(3*pairs(i,2))], '--', 'color', [0.8 0.5 0.5], 'linewidth', 1.5, 'HandleVisibility', 'off');
-        robot_lines(i) = plot3([p(3*pairs(i,1)-2), p(3*pairs(i,2)-2)], [p(3*pairs(i,1)-1), p(3*pairs(i,2)-1)], [p(3*pairs(i,1)), p(3*pairs(i,2))], '--', 'color', [0.5 0.8 0.5], 'linewidth', 1.5, 'HandleVisibility', 'off');
+        robot_lines(i) = plot3([p_3D(3*pairs(i,1)-2), p_3D(3*pairs(i,2)-2)], [p_3D(3*pairs(i,1)-1), p_3D(3*pairs(i,2)-1)], [p_3D(3*pairs(i,1)), p_3D(3*pairs(i,2))], '--', 'color', [0.5 0.8 0.5], 'linewidth', 1.5, 'HandleVisibility', 'off');
     end
     plot3(g0(1,:), g0(2,:), g0(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
     % plot3(gd(1,:), gd(2,:), gd(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
     
-    if waypoints
+    if use_waypoints
         plot3(waypoints_g(1,:), waypoints_g(2,:), waypoints_g(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
     end
 
-    if having_obstacles
+    if use_obstacles
         for i = 1:size(pairs,1)
-            object_lines(i) = plot3([p(3*pairs(i,1)-2), p(3*pairs(i,2)-2)], [p(3*pairs(i,1)-1), p(3*pairs(i,2)-1)], [p(3*pairs(i,1)), p(3*pairs(i,2))], 'k-', 'linewidth', 0.5);
+            object_lines(i) = plot3([p_3D(3*pairs(i,1)-2), p_3D(3*pairs(i,2)-2)], [p_3D(3*pairs(i,1)-1), p_3D(3*pairs(i,2)-1)], [p_3D(3*pairs(i,1)), p_3D(3*pairs(i,2))], 'k-', 'linewidth', 0.5);
         end
         
         % Obtacles plotting
@@ -534,8 +472,8 @@ if plotLiveCBF
     end
 end
 
-
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Object Simulation
 handled_nodes = [];
@@ -548,20 +486,18 @@ end
 
 n_iters_arap = 3; % choose a value of 2 or 3: the higher the value the stiffer the simulated object
 
-arap_params = create_params_for_arap(omesh, handled_nodes, [], n_iters_arap);  % create model parameters
+arap_params = create_params_for_arap(omesh, handled_nodes, [], n_iters_arap);  % Create model parameters
 
 % Simulate the initial position of the object's nodes
-Pob = simulate_object_arap(arap_params, omesh.shape', [reshape(p, [3,N])]); % (3xNp)
-Pob_cbf = Pob;
+Pob_3D = simulate_object_arap(arap_params, omesh.shape', [reshape(p_3D, [3,N])]); % Object Nodes Position (3xNp)
+Pob_cbf = Pob_3D; % CBF Object Nodes Position
 
 %% Object plotting initialization
-
-if with_object == 1
-
+if use_obstacles == 1
     for i = 1:size(arap_params.edg, 1)   % we plot the edges of the sheet's mesh between nodes
-        object_mesh(i) = plot3([Pob(1,arap_params.edg(i,1)) Pob(1,arap_params.edg(i,2))], ...
-                     [Pob(2,arap_params.edg(i,1)) Pob(2,arap_params.edg(i,2))], ...
-                     [Pob(3,arap_params.edg(i,1)) Pob(3,arap_params.edg(i,2))], ...
+        object_mesh(i) = plot3([Pob_3D(1,arap_params.edg(i,1)) Pob_3D(1,arap_params.edg(i,2))], ...
+                     [Pob_3D(2,arap_params.edg(i,1)) Pob_3D(2,arap_params.edg(i,2))], ...
+                     [Pob_3D(3,arap_params.edg(i,1)) Pob_3D(3,arap_params.edg(i,2))], ...
                      '-', 'color', [0.5 0.5 0.8], 'linewidth', 1);
     end
                        
@@ -571,24 +507,28 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% Control loop
+%% Main Simulation loop
 for it_loop = 1:niters
-
     % Store current positions
-    ps = [ps, p]; % (3*Na x N_iters)
-    ps_cbf = [ps_cbf, p_cbf]; % (3*Na x N_iters)
+    ps_3D = [ps_3D, p_3D]; % Control 3D (3*Na x N_iters)
+    ps_cbf = [ps_cbf, p_cbf]; % CBF (3*Na x N_iters)
     
-    % Current formation centroid
-    g = (1/N) * [sum(p(1:3:end)); sum(p(2:3:end)); sum(p(3:3:end))]; % (3x1)
+    % Compute centroid
+    g = (1/N) * [sum(p_3D(1:3:end)); sum(p_3D(2:3:end)); sum(p_3D(3:3:end))]; % (3x1)
+
+    % Simulate object deformation
+    Pob_3D = simulate_object_arap(arap_params, Pob_3D, [reshape(p_3D, [3,N])]);
+    Pob_cbf = simulate_object_arap(arap_params, Pob_cbf, [reshape(p_cbf, [3,N])]);
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
-    % For rotating the view
-    if (it_loop > 25) && (it_loop < 550) && having_obstacles
+    % Rotate view if obstacles present
+    if (it_loop > 25) && (it_loop < 550) && use_obstacles
         view(view_1-(it_loop-25)*0.5, view_2)
     end
     
-    if plotLiveCBF
+    % Update live plot
+    if plot_LiveCBF
         try
             figure(trajectory_fig);
             % Plot the robots in their current position in each iteration
@@ -609,37 +549,33 @@ for it_loop = 1:niters
                 robot_lines(i).ZData = [p_cbf(3*pairs(i,1)), p_cbf(3*pairs(i,2))];
             end
 
-            if having_obstacles
+            if use_obstacles
                 for i = 1:size(object_lines,2)
-                    object_lines(i).XData = [p(3*pairs(i,1)-2), p(3*pairs(i,2)-2)];
-                    object_lines(i).YData = [p(3*pairs(i,1)-1), p(3*pairs(i,2)-1)];
-                    object_lines(i).ZData = [p(3*pairs(i,1)), p(3*pairs(i,2))];
+                    object_lines(i).XData = [p_3D(3*pairs(i,1)-2), p_3D(3*pairs(i,2)-2)];
+                    object_lines(i).YData = [p_3D(3*pairs(i,1)-1), p_3D(3*pairs(i,2)-1)];
+                    object_lines(i).ZData = [p_3D(3*pairs(i,1)), p_3D(3*pairs(i,2))];
                 end
             end
         catch
             disp("Trajectory Live Window Closed");
-            plotLiveCBF = false;
+            plot_LiveCBF = false;
         end
     end
 
 
-    % Simulate how the object is deformed
-    Pob = simulate_object_arap(arap_params, Pob, [reshape(p, [3,N])]);
-    Pob_cbf = simulate_object_arap(arap_params, Pob_cbf, [reshape(p_cbf, [3,N])]);
-
-    if with_object == 1
-
-        for i = 1:size(arap_params.edg, 1)
-            object_mesh(i).XData = [Pob(1,arap_params.edg(i,1)) Pob(1,arap_params.edg(i,2))];
-            object_mesh(i).YData = [Pob(2,arap_params.edg(i,1)) Pob(2,arap_params.edg(i,2))];
-            object_mesh(i).ZData = [Pob(3,arap_params.edg(i,1)) Pob(3,arap_params.edg(i,2))];
-        end
+    if use_obstacles == 1
+    
+            for i = 1:size(arap_params.edg, 1)
+                object_mesh(i).XData = [Pob_3D(1,arap_params.edg(i,1)) Pob_3D(1,arap_params.edg(i,2))];
+                object_mesh(i).YData = [Pob_3D(2,arap_params.edg(i,1)) Pob_3D(2,arap_params.edg(i,2))];
+                object_mesh(i).ZData = [Pob_3D(3,arap_params.edg(i,1)) Pob_3D(3,arap_params.edg(i,2))];
+            end
                 
     end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    if waypoints
+    if use_waypoints
         if num_waypoint < size(waypoints_g,2)
             if norm(gd - g) < 0.2
                 num_waypoint = num_waypoint + 1;
@@ -654,28 +590,40 @@ for it_loop = 1:niters
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% Control Algorithm
-
-    if realCBF
         
-        [~, ~, u_3D, ~, ~, ~, ~, ~, u_cbf, agent_cbf_positions, ~, ~, ~, ~, ~, ~, ~, vm_stress, stress_tensor, curr_strain, A, b, grad_h, scaled_delta, pred_nodal_stresses, pred_stresses_element, pred_strains, element_displacements] = ForceControl3D_Debug(Pob0', Pob_cbf', reshape(p_cbf, [ndims,N]), agent_destinations, omesh.elements, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
+    if use_real_CBF
+        %%%%%%%%%% - CBF CONTROL - %%%%%%%%%%
+        [~, ~, u_3D, ~, ~, ~, ~, ~, u_cbf, agent_cbf_positions, ~, ~, ~, ~, ~, ~, ~, vm_stress, stress_tensor, curr_elem_stress, curr_strain, A, b, grad_h, scaled_delta, pred_nodal_stresses, pred_stresses_element, pred_strains, element_displacements, u_hat_cbf, Le_cbf, Ce_cbf] = ForceControl3D_Debug(Pob0', Pob_cbf', reshape(p_cbf, [ndims,N]), agent_destinations, omesh.elements, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
+        %%%%%%%%%% - CBF CONTROL - %%%%%%%%%%
+
+        % Displacements
+        u_hats_cbf = cat(3, u_hats_cbf, squeeze(u_hat_cbf)); % (12xN_tetxNiter)
+        element_disps_cbf = cat(3, element_disps_cbf, reshape(element_displacements*u_3D,[12,size(u_hat_cbf,3)]));
 
         % Current Stresses
-        vm_stresses = [vm_stresses, vm_stress];
-        tensor_stresses = cat(3, tensor_stresses, stress_tensor);
+        vm_stresses_cbf = [vm_stresses_cbf, vm_stress];
+        tensor_stresses_cbf = cat(3, tensor_stresses_cbf, stress_tensor);
+        elem_stresses_cbf = cat(3, elem_stresses_cbf, squeeze(curr_elem_stress));
         
         % Strains recording
-        pred_strains_cbf = cat(3, pred_strains_cbf, pred_strains*u_3D);
+        pred_strains_cbf = cat(3, pred_strains_cbf, reshape(pred_strains*u_3D,[6,size(omesh.elements,1)]));
         % pred_strains_cbf = cat(3, pred_strains_cbf, pred_strains*u_cbf);
-        strains_cbf = cat(3, strains_cbf, curr_strain);
+        strains_cbf = cat(3, strains_cbf, squeeze(curr_strain));
 
         % von Mises Derivative
-        scaled_deltas = cat(3, scaled_deltas, scaled_delta);
+        scaled_deltas_cbf = cat(3, scaled_deltas_cbf, scaled_delta);
 
         % Predicted Stresses
         pred_nodal_stresses = pred_nodal_stresses*u_3D;
         % pred_nodal_stresses = pred_nodal_stresses*u_cbf;
         pred_nodal_stresses = reshape(pred_nodal_stresses,[6,size(omesh.shape,1)]);
         pred_stresses_cbf = cat(3, pred_stresses_cbf, pred_nodal_stresses); % Per node
+        
+        pred_element_stress_cbf = reshape(pred_stresses_element*u_3D,[6,size(omesh.elements,1)]);
+        pred_elem_stresses_cbf = cat(3, pred_elem_stresses_cbf, pred_element_stress_cbf); % per element
+        % Predicted von Mises Stress
+        [pred_vm_stress_cbf,~] = VonMisesStressComp(pred_element_stress_cbf, omesh.elements, size(omesh.shape,1));
+        pred_vmStresses_cbf = [pred_vmStresses_cbf, pred_vm_stress_cbf];
 
         % Gradients of h
         grads_hs = [grads_hs, grad_h*u_3D];
@@ -683,8 +631,39 @@ for it_loop = 1:niters
 
 
     end
-    [u, U_f, U_H, u_G, U_s, u_c, U_Hd, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual] = TransportationControl3D_Debug(reshape(p, [ndims,N]), agent_destinations, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
+
+    % [u, U_f, U_H, u_G, U_s, u_c, U_Hd, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual] = TransportationControl3D_Debug(reshape(p, [ndims,N]), agent_destinations, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
+    [~, U_f, u, U_H, u_G, U_s, u_c, U_Hd, u_3D_cbf, agent_positions_3D, agent_destinations_3D, gamma_H_3D, gamma_G_3D, eg_3D, es_3D, eth_3D, eth_individual_3D, curr_vmSigma_3D, curr_SigmaTensor_3D, curr_elem_stress_3D, curr_strain_3D, ~, ~, ~, scaled_delta_3D, pred_nodal_stresses_3D, pred_stresses_element_3D, pred_strain_3D, element_displacements_3D, u_hat_3D, Le_3D, Ce_3D] = ForceControl3D_Debug(Pob0', Pob_3D', reshape(p_3D, [ndims,N]), agent_destinations, omesh.elements, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
+
+    % Displacements
+    u_hats_3D = cat(3, u_hats_3D, squeeze(u_hat_3D)); % (12xN_tetxNiter)
+    element_disps_3D = cat(3, element_disps_3D, reshape(element_displacements_3D*u,[12,size(u_hat_3D,3)]));
+
+    % Current Stresses
+    vm_stresses_3D = [vm_stresses_3D, curr_vmSigma_3D];
+    tensors_stresses_3D = cat(3, tensors_stresses_3D, curr_SigmaTensor_3D);
+    elem_stresses_3D = cat(3,elem_stresses_3D, squeeze(curr_elem_stress_3D));
     
+    % Strains recording
+    pred_strains_3D = cat(3, pred_strains_3D, reshape(pred_strain_3D*u,[6,size(omesh.elements,1)]));
+    % pred_strains_cbf = cat(3, pred_strains_cbf, pred_strains*u_cbf);
+    strains_3D = cat(3, strains_3D, squeeze(curr_strain_3D));
+
+    % von Mises Derivative
+    scaled_deltas_3D = cat(3, scaled_deltas_3D, scaled_delta_3D);
+
+    % Predicted Stresses
+    pred_nodal_stresses_3D = pred_nodal_stresses_3D*u;
+    % pred_nodal_stresses = pred_nodal_stresses*u_cbf;
+    pred_nodal_stresses_3D = reshape(pred_nodal_stresses_3D,[6,size(omesh.shape,1)]);
+    pred_stresses_3D = cat(3, pred_stresses_3D, pred_nodal_stresses_3D); % Per node
+
+    pred_element_stress_3D = reshape(pred_stresses_element_3D*u,[6,size(omesh.elements,1)]);
+    pred_elem_stresses_3D = cat(3, pred_elem_stresses_3D, pred_element_stress_3D); % per element
+    % Predicted von Mises Stress
+    [pred_vm_stress_3D,~] = VonMisesStressComp(pred_element_stress_3D, omesh.elements, size(omesh.shape,1));
+    pred_vmStresses_3D = [pred_vmStresses_3D, pred_vm_stress_3D];
+
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% CBF
 
@@ -694,8 +673,8 @@ for it_loop = 1:niters
     H = 2 * eye(3*N);
     f = -2 * u(:);
 
-    if ~realCBF
-        if it_loop > niters/2 && forceCBF
+    if ~use_real_CBF
+        if it_loop > niters/2 && force_CBF
             % A*u >= b --> La cbf actúa
             A = ones(N,3*N);
             b = - cbf_alpha * ones(N,1) * MaxStress;
@@ -721,15 +700,15 @@ for it_loop = 1:niters
     %% Errors
 
     % Store current control errors
-    gammas_H = [gammas_H; gamma_H];
-    gammas_G = [gammas_G; gamma_G];
-    egs = [egs; eg];                                % Centroid error
-    ess = [ess; es];                                % Scale error
+    gammas_H_3D = [gammas_H_3D; gamma_H_3D];
+    gammas_G_3D = [gammas_G_3D; gamma_G_3D];
+    egs_3D = [egs_3D; eg_3D];                                % Centroid error
+    ess_3D = [ess_3D; es_3D];                                % Scale error
 
-    eths = [eths; eth];                             % Rotation error
-    eth_xs = [eth_xs; eth_individual(1)];           % Roll Error
-    eth_ys = [eth_ys; eth_individual(2)];           % Pitch Error
-    eth_zs = [eth_zs; eth_individual(3)];           % Yaw Error
+    eths_3D = [eths_3D; eth_3D];                             % Rotation error
+    eth_xs_3D = [eth_xs_3D; eth_individual_3D(1)];           % Roll Error
+    eth_ys_3D = [eth_ys_3D; eth_individual_3D(2)];           % Pitch Error
+    eth_zs_3D = [eth_zs_3D; eth_individual_3D(3)];           % Yaw Error
 
     u_Hs = cat(3, u_Hs, U_H);                       % shape-preserving control (UH)
     u_Gs = cat(3, u_Gs, reshape(u_G,[3,N]));        % Deformation Control (UG)
@@ -744,27 +723,27 @@ for it_loop = 1:niters
     
     u = u(:);
 
-    p = p + u*dt; % apply control input
+    p_3D = p_3D + u*dt; % apply control input
     p_cbf = p_cbf + u_cbf*dt;
     
     % Velocity norm
     for i = 1:N 
         nv(i,1) = norm(u(3*i-2:3*i,1)); % we store the norms of velocity
         nv_cbf(i, 1) = norm(u_cbf(3*i-2:3*i,1));
-        if realCBF
+        if use_real_CBF
             prop_nv_cbf(i,1) = norm(u_3D(3*i-2:3*i,1));
         end
     end
     
     % Store current velocity data
-    vs = [vs u];
-    nvs = [nvs nv];
+    vs_3D = [vs_3D u];
+    nvs_3D = [nvs_3D nv];
 
     vs_cbf = [vs_cbf u_cbf];
     nvs_cbf = [nvs_cbf nv_cbf];
 
     % Proposed 3D vel
-    if realCBF
+    if use_real_CBF
         prop_vs_cbf = [prop_vs_cbf u_3D];
         prop_nvs_cbf = [prop_nvs_cbf prop_nv_cbf];
     end
@@ -785,68 +764,22 @@ for it_loop = 1:niters
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
-    % We save each frame for creating the video
-    if save_frames == 1  % we simulate the behavior of the real object
-        
-        % We create the frame for the video, including object and robots
-        if it_loop==1 || rem(it_loop, floor(1/(fps*dt))) < 1e-8    % we do this because checking "rem == 0" can be unreliable
 
-            % We can save the figure and print it into image files (eps, png)
-            hgsave(strcat(folder_result,'/','robots_object'));
-            print(strcat(folder_result, '/', 'robots_object_', int2str(ind_im)), '-dpng', '-r300');
-            ind_im = ind_im + 1;    % increase the index for the next frame
-
-        end
-    end
-
-    if plotLiveVonMises
+    if plot_LiveVonMises
         figure(vonMises_fig);
         trisurf(omesh.elements, Pob0(1,:)', Pob0(2,:)', Pob0(3,:)', vm_stress, 'EdgeColor', 'none');
     end
 
     
     %% Pause for live plot
-    if plotLiveCBF
+    if plot_LiveCBF
         pause(0.005) % we give some time for the user to visualize the created plot
     end
  
 end
 
 %% Computation of the Stress-related things
-if realCBF
-    N_tet = size(omesh.elements,1);
-    % ** Initial Poses **
-    InitTetPoses_3D = omesh.shape(omesh.elements',:); % (4*N_tet x 3)
-    InitTetPoses_3D = permute(reshape(InitTetPoses_3D, 4, N_tet, 3), [1, 3, 2]); % (4x3xN_tet)
-    column_tet_origins_3D = reshape(permute(InitTetPoses_3D, [2, 1, 3]), 12, 1, N_tet); % (12x1xN_tet)
-    for iter = 1:niters
-        currTetPoses_3D = Pob(:,omesh.elements')';  % We get the poses of the vertices of each tetrahedron as (4*N_tet x 3)
-        currTetPoses_3D = permute(reshape(currTetPoses_3D, 4, N_tet, 3), [1, 3, 2]); % We reshape the matrix to (4x3xN_tet) for a better understanding
-        column_tet_positions_3D = reshape(permute(currTetPoses_3D, [2, 1, 3]), 12, 1, N_tet);  % We reshape to a column vector of (12x1xN_tet) in order to multiply it by the Rotation and stiffness matrices
-
-
-        % ------- 3D Internal Stress -------
-        % Computation of the Elasticity Matrix (Material Stifness Matrix)
-        Ce = CeMatrixComputation(E, nu); % 6x6 symmetric matrix 
-    
-        % Computation of the strain-displacement matrix
-        Le = LeMatrixComputation(omesh.elements, omesh.shape); % 6x12 matrix
-    
-        % Computed based on eq. 7 (Petit et all. 2017)
-        % sigma_e = Ce * Le * u_hat_e
-        % Ce_Le = pagemtimes(Ce, Le); % This results on a 6x12xN_tet matrix
-        u_hat_e_3D = column_tet_positions_3D - column_tet_origins_3D; % We compute the displacement of the nodes and store it in a column vector (12x1xN_tet)
-        strains_3D = pagemtimes(Le, u_hat_e_3D); % Strain Tensor of each tetrahedron (6x1xN_tet), where the 3 first components are the normal strains and the 3 last are the shear strains
-        stresses_3D = pagemtimes(Ce, strains_3D); % Stress Tensor of each tetrahedron (6x1xN_tet), where the 3 first components are the normal stresses (sigma) and the 3 last are the shear stresses (tau)
-            
-        % ------- von Mises Stress -------
-        % We compute the vertex/tetrahedron-wise's von Mises Stress
-        [vmSigma_3D, SigmaTensor_3D] = VonMisesStressComp(stresses_3D, omesh.elements, size(omesh.shape,1));
-
-        vmStresses_3D = [vmStresses_3D, vmSigma_3D];
-        StressTensors_3D = cat(3, StressTensors_3D, SigmaTensor_3D);
-    end
-
+if use_real_CBF
 
     % Computation of the predicted VM stress
     pred_sigma_12 = pred_stresses_cbf(1,:,:) - pred_stresses_cbf(2,:,:); % sigma_x - sigma_y
@@ -863,14 +796,14 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% We save all variables of the workspace
-if save_variables == 1
-    save(fullfile(strcat(folder_result, '/', variables_name, '_3D')));
+%% Plot control outputs
+if plot_ControlOutputs_3D
+    plot_control_outputs;
 end
 
 %% Plot standard data
 SimData2Struct_3DControl;
-if plotCResults
+if plot_CResults_3D
     plotControlResults(data_standard);
 end
 
@@ -890,17 +823,12 @@ data_cbf.eth_xs = eth_xs_cbf;
 data_cbf.eth_ys = eth_ys_cbf;
 data_cbf.eth_zs = eth_zs_cbf;
 
-if plotCResultsCBF
+if plot_CResults_CBF
     plotControlResults(data_cbf);
 end
 
-%% Plot control outputs
-if plotControlOutputs
-    plot_control_outputs;
-end
-
 %% Plot the CBF diferences -----> Au VS b
-if plotCBFDifferences
+if plot_CBF_Conditions
     figure;
    % Most representative values comparison
     % b
@@ -922,8 +850,67 @@ if plotCBFDifferences
     legend show;
 end
 
+%% Plot h Function Values
+max_stresses = ones(size(vm_stresses_cbf))*(yield_stress/SF);
+hs = max_stresses - vm_stresses_cbf;
+if plot_Hs_CBF
+
+    % Full values plot
+    figure;
+    plot(hs);
+    title('CBF h - (σ_m_a_x - σ_c_u_r_r)');
+    xlabel('Iteration');
+    ylabel('VM Stress (Pa)');
+    grid on;
+
+    % Most representative values plot
+    figure;
+    plot(max(hs),'DisplayName', "max", 'Color','r', 'LineWidth', 2);
+    hold on;
+    plot(min(hs),'DisplayName', "min", 'Color','b', 'LineWidth', 2);
+    plot(mean(hs),'DisplayName', "mean", 'Color', 'black', 'LineWidth', 2, 'LineStyle',':');
+    legend show;
+    title('CBF h - (σ_m_a_x - σ_c_u_r_r)');
+    xlabel('Iteration');
+    ylabel('VM Stress (Pa)');
+    grid on;
+
+    
+end
+
+
+%% Plot Gradient of h
+if plot_GradsH_CBF
+    % Full Values plot
+    figure;
+    plot(grads_hs);
+    title('Grad_h - Au_c_b_f');
+    xlabel('Iteration');
+    ylabel('VM Stress (Pa)');
+    grid on;
+
+    % Most representative values comparison with h
+    figure;
+    % H
+    plot(max(hs),'DisplayName', "h_m_a_x", 'Color','r', 'LineWidth', 2, 'LineStyle',':');
+    hold on;
+    plot(min(hs),'DisplayName', "h_m_i_n", 'Color','b', 'LineWidth', 2, 'LineStyle',':');
+    plot(mean(hs),'DisplayName', "h_m_e_a_n", 'Color', 'black', 'LineWidth', 2, 'LineStyle',':');
+
+    % grad_h
+    plot(max(grads_hs),'DisplayName', "gradh_m_a_x", 'Color','r', 'LineWidth', 2);
+    plot(min(grads_hs),'DisplayName', "gradh_m_i_n", 'Color','b', 'LineWidth', 2);
+    plot(mean(grads_hs),'DisplayName', "gradh_m_e_a_n", 'Color', 'black', 'LineWidth', 2);
+    legend show;
+    title('CBF h VS grad_h');
+    xlabel('Iteration');
+    ylabel('VM Stress (Pa)');
+    grid on;
+
+end
+
 %% Individual Velocity Correction plot
-if plotCBFVelCorr
+if plot_CBF_VelCorr
     % LINEAR VELOCITY IN X
     % We create the figure and set the parameters
     figure
@@ -1052,7 +1039,7 @@ end
 
 %% Velocity Differences
 
-if plotCBFVelDiff
+if plot_CBF_VelDiff
     % LINEAR VELOCITY IN X
     % We create the figure and set the parameters
     figure
@@ -1173,13 +1160,13 @@ end
 
 %% Velocity comparation
 
-if plotVelComp
+if plot_VelComp
 
     figure
-    plot(nvs(1,:)');
+    plot(nvs_3D(1,:)');
     hold on;
     plot(nvs_cbf(1,:)');
-    if realCBF
+    if use_real_CBF
         plot(prop_nvs_cbf(1,:)');
     end
     hold off;
@@ -1187,7 +1174,7 @@ if plotVelComp
     xlabel("Iters");
     ylabel("m/s");
     % legend(["Agend 1 - std", "Agend 2 - std", "Agend 3 - std", "Agend 4 - std", "Agend 1 - cbf", "Agend 2 - cbf", "Agend 3 - cbf", "Agend 4 - cbf"]);
-    if realCBF
+    if use_real_CBF
         legend(["Agend 1 - std", "Agend 1 - cbf", "Agent 1 - Proposed cbf"]);
     else
         legend(["Agend 1 - std", "Agend 1 - cbf"]);
@@ -1196,11 +1183,11 @@ if plotVelComp
 end
 
 %% Plot von Mises maximum ------> Curr VM
-if plotVonMisesMax
+if plot_VonMisesMax
     figure;
     hold on;
     for a = 1:N
-        plot(max(vm_stresses),'Color','b');
+        plot(max(vm_stresses_cbf),'Color','b');
     end
     hold off;
     title("Maximum Von Mises per iteration");
@@ -1227,7 +1214,7 @@ end
 
 %% Plot Stress Differences
 
-if plotVMStressDiff
+if plot_VMStressDiff
 
     % Reshape data: (nodes x iterations)
     vm_diff_matrix = reshape(vonMises_diffs, [], niters);
@@ -1272,78 +1259,19 @@ if plotVMStressDiff
 end
 
 %% Plot VM Stress Comparison
-if plotVMStressComp
+if plot_VMStressComp
     % This plot the differences between the maximum value of the von Mises
     % stress during the simulation
     figure;
-    plot(max(vm_stresses),'Color','b','DisplayName', "CBF - Max VMStress (σ_c_u_r_r)", 'linewidth', 2);
+    plot(max(vm_stresses_cbf),'Color','b','DisplayName', "CBF - Max VMStress (σ_c_u_r_r)", 'linewidth', 2);
     hold on;
-    plot(repelem(yield_stress/SF,size(vm_stresses,2)),'Color', 'r', 'DisplayName', "Yield Stress (σ_y_i_e_l_d)", 'linewidth', 2);
+    plot(repelem(yield_stress/SF,size(vm_stresses_cbf,2)),'Color', 'r', 'DisplayName', "Yield Stress (σ_y_i_e_l_d)", 'linewidth', 2);
     plot(max(pred_vmStress),'Color','g','DisplayName',"CBF - Max Pred VMStres (σ_p_r_e_d)", 'linewidth', 2);
-    plot(max(vmStresses_3D),'Color',[1 0.5 0],'DisplayName',"3D Control - Max VMStress (σ_3_D)", 'linewidth',2);
+    plot(max(vm_stresses_3D),'Color',[1 0.5 0],'DisplayName',"3D Control - Max VMStress (σ_3_D)", 'linewidth',2);
     hold off;
     xlabel('Iteration');
     ylabel('VM Stress');
     title('Von Mises Stress Comparison');
     legend show;
     grid on;
-end
-
-%% Plot h Function Values
-max_stresses = ones(size(vm_stresses))*(yield_stress/SF);
-hs = max_stresses - vm_stresses;
-if plotHsCBF
-
-    % Full values plot
-    figure;
-    plot(hs);
-    title('CBF h - (σ_m_a_x - σ_c_u_r_r)');
-    xlabel('Iteration');
-    ylabel('VM Stress (Pa)');
-    grid on;
-
-    % Most representative values plot
-    figure;
-    plot(max(hs),'DisplayName', "max", 'Color','r', 'LineWidth', 2);
-    hold on;
-    plot(min(hs),'DisplayName', "min", 'Color','b', 'LineWidth', 2);
-    plot(mean(hs),'DisplayName', "mean", 'Color', 'black', 'LineWidth', 2, 'LineStyle',':');
-    legend show;
-    title('CBF h - (σ_m_a_x - σ_c_u_r_r)');
-    xlabel('Iteration');
-    ylabel('VM Stress (Pa)');
-    grid on;
-
-    
-end
-
-
-%% Plot Gradient of h
-if plotGradsHCBF
-    % Full Values plot
-    figure;
-    plot(grads_hs);
-    title('Grad_h - Au_c_b_f');
-    xlabel('Iteration');
-    ylabel('VM Stress (Pa)');
-    grid on;
-
-    % Most representative values comparison with h
-    figure;
-    % H
-    plot(max(hs),'DisplayName', "h_m_a_x", 'Color','r', 'LineWidth', 2, 'LineStyle',':');
-    hold on;
-    plot(min(hs),'DisplayName', "h_m_i_n", 'Color','b', 'LineWidth', 2, 'LineStyle',':');
-    plot(mean(hs),'DisplayName', "h_m_e_a_n", 'Color', 'black', 'LineWidth', 2, 'LineStyle',':');
-
-    % grad_h
-    plot(max(grads_hs),'DisplayName', "gradh_m_a_x", 'Color','r', 'LineWidth', 2);
-    plot(min(grads_hs),'DisplayName', "gradh_m_i_n", 'Color','b', 'LineWidth', 2);
-    plot(mean(grads_hs),'DisplayName', "gradh_m_e_a_n", 'Color', 'black', 'LineWidth', 2);
-    legend show;
-    title('CBF h VS grad_h');
-    xlabel('Iteration');
-    ylabel('VM Stress (Pa)');
-    grid on;
-
 end

@@ -25,7 +25,7 @@
 % Author: Alberto Zafra Navarro, January 2025
 
 % function [v, U_f, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual] = ForceControl3D_Debug(vert_origins, vert_positions, vert_prevpositions, agent_positions, agent_destinations, meshTetrahedrons, prev_stressTensor, E, nu, yield_stress, SF, kCBF, katt, krep, cbf_alpha, kH, kG, ks, kg, kth, sd, thd, vsat)
-function [v, U_f, u_3D, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual, curr_vmSigma, curr_SigmaTensor, strains, A, b, grad_h, scaled_delta, pred_nodal_stresses, pred_stresses_element, pred_strains, element_displacements] = ForceControl3D_Debug(vert_origins, vert_positions, agent_positions, agent_destinations, meshTetrahedrons, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, kH, kG, ks, kg, kth, sd, thd, vsat)
+function [v, U_f, u_3D, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual, curr_vmSigma, curr_SigmaTensor, stresses, strains, A, b, grad_h, scaled_delta, pred_nodal_stresses, pred_stresses_element, pred_strains, element_displacements, u_hat_e, Le, Ce] = ForceControl3D_Debug(vert_origins, vert_positions, agent_positions, agent_destinations, meshTetrahedrons, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, kH, kG, ks, kg, kth, sd, thd, vsat)
 
     % ++++++++++ Optional parameters evaluation ++++++++++
 
@@ -858,7 +858,7 @@ function [grad_h, scaled_delta, pred_nodal_stresses, pred_stresses_element, pred
     Ce_blck = kron(eye(N_tet),Ce);
     Ce_blck = sparse(Ce_blck);
 
-    % Compute element stresses (6*N_tet x 3*N_a*N_tet)
+    % Compute element stresses (6*N_tet x 3*N_a)
     pred_stresses_element = Ce_blck * pred_strains;
 
     % -----------------------------------------------------------

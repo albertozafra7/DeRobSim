@@ -4,12 +4,13 @@
 
 % Load the data
 % load('.\Experiments\Forces\MatlabInteractiveTests\JacobianTests.mat');
-load('.\Experiments\Forces\MatlabInteractiveTests\JacobianUnitaryCube.mat');
+% load('.\Experiments\Forces\MatlabInteractiveTests\JacobianUnitaryCube.mat');
+load('.\Experiments\Forces\MatlabInteractiveTests\JacobianProgramaticallyTest.mat');
 
 % b = J*A
 
 % Number of particles
-N = length(particle_displacements)*3; % N*3 (x,y,z)
+N = size(particle_displacements,1)*3; % N*3 (x,y,z)
 % Number of experiments
 S = n_experiments;
 % Number of Agents
@@ -31,7 +32,7 @@ b = [];
 for i = 1:n_experiments
     slice = particle_displacements(:,:,i);
 
-    slice = reshape(slice', [3*length(particle_displacements), 1]);
+    slice = reshape(slice', [3*size(particle_displacements,1), 1]);
 
     b = [b;slice];
 end
@@ -71,6 +72,7 @@ J = reshape(Jvect, [N,Na]);
 
 % save('.\Experiments\Forces\MatlabInteractiveTests\JacobianTests.mat',"J", "-append");
 % save('.\Experiments\Forces\MatlabInteractiveTests\JacobianUnitaryCube.mat',"J", "-append");
+% save('.\Experiments\Forces\MatlabInteractiveTests\JacobianProgramaticallyTest.mat',"J", "-append");
 
 %% ***** Tests *****
 % Testing the first experiment
@@ -82,7 +84,7 @@ for exp = 1:S
     % expected solution
     exp_slice_b = particle_displacements(:,:,exp);
     
-    exp_slice_b = reshape(exp_slice_b', [3*length(particle_displacements), 1]);
+    exp_slice_b = reshape(exp_slice_b', [3*size(particle_displacements,1), 1]);
     
     % Error
     e = abs(exp_slice_b - slice_b);

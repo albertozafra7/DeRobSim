@@ -23,21 +23,21 @@ data_standard.p0 = p0; % Initial positions of the agents (3*N_agents x 1)
 data_standard.g0 = g0; % Initial centroid position (3 x 1)
 data_standard.PT = PT; % Final positions of the agents (3*N_agents x 1)
 data_standard.gd = gd; % Final centroid position (3 x 1)
-data_standard.ps = ps; % Positions of the agents in each iteration (3*N_agents x N_iters)
+data_standard.ps = ps_3D; % Positions of the agents in each iteration (3*N_agents x N_iters)
 
 % Velocities
-data_standard.vs = vs; % Velocities of the agents in each iteration (3*N_agents x N_iters)
-data_standard.nvs = nvs; % Velocity norms of the agents in each iteration (N_agents x N_iters)
+data_standard.vs = vs_3D; % Velocities of the agents in each iteration (3*N_agents x N_iters)
+data_standard.nvs = nvs_3D; % Velocity norms of the agents in each iteration (N_agents x N_iters)
 
 % Errors
-data_standard.gammas_H = gammas_H; % Cost relative to shape-preserving transformation (N_iters x 1)
-data_standard.gammas_G = gammas_G; % Cost relative to configuration consistent with our deformation modes (N_iters x 1)
-data_standard.egs = egs; % Centroid position errors (N_iters x 1)
-data_standard.ess = ess; % Scale errors (N_iters x 1)
-data_standard.eths = eths; % Rotation errors (N_iters x 1)
-data_standard.eth_xs = eth_xs; % Roll rotation error (N_iters x 1)
-data_standard.eth_ys = eth_ys; % Pitch rotation error (N_iters x 1)
-data_standard.eth_zs = eth_zs; % Yaw rotation error (N_iters x 1)
+data_standard.gammas_H = gammas_H_3D; % Cost relative to shape-preserving transformation (N_iters x 1)
+data_standard.gammas_G = gammas_G_3D; % Cost relative to configuration consistent with our deformation modes (N_iters x 1)
+data_standard.egs = egs_3D; % Centroid position errors (N_iters x 1)
+data_standard.ess = ess_3D; % Scale errors (N_iters x 1)
+data_standard.eths = eths_3D; % Rotation errors (N_iters x 1)
+data_standard.eth_xs = eth_xs_3D; % Roll rotation error (N_iters x 1)
+data_standard.eth_ys = eth_ys_3D; % Pitch rotation error (N_iters x 1)
+data_standard.eth_zs = eth_zs_3D; % Yaw rotation error (N_iters x 1)
 
 % Plotting
 data_standard.pairs = pairs; % Interconnection between agents
