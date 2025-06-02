@@ -1,6 +1,6 @@
 % Computation of the von Mises stress 
 % source: https://en.wikipedia.org/wiki/Von_Mises_yield_criterion
-function [VMSigma_n, Sigma_n] = VonMisesStressComp(stresses, meshTetrahedrons, N_verts)
+function [VMSigma_n, Sigma_n, VMSigma_e, stress_elem] = VonMisesStressComp(stresses, meshTetrahedrons, N_verts)
     % Initialize node-based stress tensor
     % stress_n_disp = zeros(6,1,N_verts);
     % node_contributions = zeros(N_verts, 1); % Track contributions per node

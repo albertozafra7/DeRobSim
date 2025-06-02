@@ -10,16 +10,16 @@ function [strain_error, stress_error, vm_error] = GetFEMErrors(vm_stress,elem_st
 
     % Equivalence evaluation
     % u_hat vs strain
-    comp_strain_cbf = pagemtimes(Le,u_hat);
-    strain_error.values = abs(strain - comp_strain_cbf);
+    comp_strain = pagemtimes(Le,u_hat);
+    strain_error.values = abs(strain - comp_strain);
     
     % strain vs stress
-    comp_stress_cbf = pagemtimes(Ce,comp_strain_cbf);
-    stress_error.values = abs(elem_stress - comp_stress_cbf);
+    comp_stress = pagemtimes(Ce,comp_strain);
+    stress_error.values = abs(elem_stress - comp_stress);
     
     % stress vs vonMises
-    [comp_vmStress_cbf,~] = VonMisesStressComp(comp_stress_cbf,omesh.elements,size(omesh.shape,1));
-    vm_error.values = abs(vm_stress - comp_vmStress_cbf);
+    [comp_vmStress,~] = VonMisesStressComp(comp_stress,omesh.elements,size(omesh.shape,1));
+    vm_error.values = abs(vm_stress - comp_vmStress);
 
     % Getting and printing the comparison results (if requested)
     [strain_error.max,strain_error.min,strain_error.mean,strain_error.std] = CompareValues(strain_error.values, DispComp,"strain",DispSufix);

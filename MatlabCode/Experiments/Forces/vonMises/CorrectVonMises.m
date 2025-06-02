@@ -68,55 +68,56 @@ Ce = CeMatrixComputation(E, nu);
 
 % Compute strain-displacement matrices (6x12xN_tet)
 Le = ComputeBe(MeshTetrahedrons, VertexInitPoses);
-
-% Initialize displacement vector (12x1xN_tet)
-u_hat_e = zeros(12,1,size(MeshTetrahedrons, 1));
-
-% Construct displacement vectors for all tetrahedrons
-for elem = 1:size(MeshTetrahedrons, 1)
-    nodes = MeshTetrahedrons(elem, :); % Get the global node indices
-    for node = 1:4
-        u_hat_e(3*node-2,1,elem) = R.Displacement.x(nodes(node)); % x-displacement
-        u_hat_e(3*node-1,1,elem) = R.Displacement.y(nodes(node)); % y-displacement
-        u_hat_e(3*node,1,elem)   = R.Displacement.z(nodes(node)); % z-displacement
-    end
-end
-
-% Compute strains (6x1xN_tet)
-strains_disp = pagemtimes(Le, u_hat_e);
-
-% Compute stresses (6x1xN_tet)
-stresses_disp = pagemtimes(Ce, strains_disp);
-
-% Initialize node-based stress tensor
-stress_n_disp = zeros(6,1,n_nodes);
-node_contributions = zeros(n_nodes, 1); % Track contributions per node
-
-% Accumulate stresses for each node
-for elem = 1:size(MeshTetrahedrons, 1)
-    nodes = MeshTetrahedrons(elem, :);
-    stress_elem = stresses_disp(:,:,elem);
-    for i = 1:4
-        stress_n_disp(:,:,nodes(i)) = stress_n_disp(:,:,nodes(i)) + stress_elem;
-        node_contributions(nodes(i)) = node_contributions(nodes(i)) + 1;
-    end
-end
-
-% Average stress at each node
-for node = 1:n_nodes
-    if node_contributions(node) > 0
-        stress_n_disp(:,:,node) = stress_n_disp(:,:,node) / node_contributions(node);
-    end
-end
+% 
+% % Initialize displacement vector (12x1xN_tet)
+% u_hat_e = zeros(12,1,size(MeshTetrahedrons, 1));
+% 
+% % Construct displacement vectors for all tetrahedrons
+% for elem = 1:size(MeshTetrahedrons, 1)
+%     nodes = MeshTetrahedrons(elem, :); % Get the global node indices
+%     for node = 1:4
+%         u_hat_e(3*node-2,1,elem) = R.Displacement.x(nodes(node)); % x-displacement
+%         u_hat_e(3*node-1,1,elem) = R.Displacement.y(nodes(node)); % y-displacement
+%         u_hat_e(3*node,1,elem)   = R.Displacement.z(nodes(node)); % z-displacement
+%     end
+% end
+% 
+% % Compute strains (6x1xN_tet)
+% strains_disp = pagemtimes(Le, u_hat_e);
+% 
+% % Compute stresses (6x1xN_tet)
+% stresses_disp = pagemtimes(Ce, strains_disp);
+% 
+% % Initialize node-based stress tensor
+% stress_n_disp = zeros(6,1,n_nodes);
+% node_contributions = zeros(n_nodes, 1); % Track contributions per node
+% 
+% % Accumulate stresses for each node
+% for elem = 1:size(MeshTetrahedrons, 1)
+%     nodes = MeshTetrahedrons(elem, :);
+%     stress_elem = stresses_disp(:,:,elem);
+%     for i = 1:4
+%         stress_n_disp(:,:,nodes(i)) = stress_n_disp(:,:,nodes(i)) + stress_elem;
+%         node_contributions(nodes(i)) = node_contributions(nodes(i)) + 1;
+%     end
+% end
+% 
+% % Average stress at each node
+% for node = 1:n_nodes
+%     if node_contributions(node) > 0
+%         stress_n_disp(:,:,node) = stress_n_disp(:,:,node) / node_contributions(node);
+%     end
+% end
+[~, stress_n_disp, ~, ~,~] = ComputeStressByDisplacements([R.Displacement.x'; R.Displacement.y'; R.Displacement.z']',MeshTetrahedrons, Ce, Le);
 
 % Compute von Mises stress at each node
 VMSigma_n_Disp = zeros(n_nodes, 1);
 for node = 1:n_nodes
-    sigma_12 = stress_n_disp(1,:,node) - stress_n_disp(2,:,node); % sigma_x - sigma_y
-    sigma_23 = stress_n_disp(2,:,node) - stress_n_disp(3,:,node); % sigma_y - sigma_z
-    sigma_31 = stress_n_disp(3,:,node) - stress_n_disp(1,:,node); % sigma_z - sigma_x
+    sigma_12 = stress_n_disp(1,node) - stress_n_disp(2,node); % sigma_x - sigma_y
+    sigma_23 = stress_n_disp(2,node) - stress_n_disp(3,node); % sigma_y - sigma_z
+    sigma_31 = stress_n_disp(3,node) - stress_n_disp(1,node); % sigma_z - sigma_x
     VMSigma_n_Disp(node) = sqrt(0.5 * (sigma_12^2 + sigma_23^2 + sigma_31^2) + ...
-        3 * (stress_n_disp(4,:,node)^2 + stress_n_disp(5,:,node)^2 + stress_n_disp(6,:,node)^2));
+        3 * (stress_n_disp(4,node)^2 + stress_n_disp(5,node)^2 + stress_n_disp(6,node)^2));
 end
 
 
@@ -127,14 +128,14 @@ title("von Mises Stress Displacements");
 
 % Compare with result stress and compute relative error
 Result_Stress = [R.Stress.sxx, R.Stress.syy, R.Stress.szz, R.Stress.sxy, R.Stress.syz, R.Stress.szx];
-stressError = abs(squeeze(stress_n_disp)' - Result_Stress) ./ max(Result_Stress, [], 'all');
-disp("Maximum Relative Stress Error - With Displacements:");
+stressError = abs(squeeze(stress_n_disp)' - Result_Stress);% ./ max(Result_Stress, [], 'all');
+disp("Maximum Absolute Stress Error - With Displacements:");
 disp(max(stressError));
 
 % Compare with result von mises stress and compute relative error
-VMError = abs(VMSigma_n_Disp - R.VonMisesStress) ./ max(R.VonMisesStress);
-disp("Maximum Relative von Mises Error - With Displacements:");
-disp(max(VMError));
+VMError = abs(VMSigma_n_Disp - R.VonMisesStress) ./ R.VonMisesStress;
+disp(strcat("Maximum Relative von Mises Error - With Displacements: ", num2str(max(VMError))));
+disp(strcat("Maximum Porcentual von Mises Error - With Displacements:",num2str(max(VMError) * 100), "%"));
 
 
 %% von Mises With our data
@@ -198,14 +199,14 @@ title("von Mises Stress Custom Data");
 
 % Compare with result stress and compute relative error
 Result_Stress = [R.Stress.sxx, R.Stress.syy, R.Stress.szz, R.Stress.sxy, R.Stress.syz, R.Stress.szx];
-stressError = abs(squeeze(stress_n_disp)' - Result_Stress) ./ max(Result_Stress, [], 'all');
-disp("Maximum Relative Stress Error - Custom Data:");
+stressError = abs(squeeze(stress_n_disp)' - Result_Stress);% ./ max(Result_Stress, [], 'all');
+disp("Maximum Absolute Stress Error - Custom Data:");
 disp(max(stressError));
 
 % Compare with result von mises stress and compute relative error
-VMError = abs(VMSigma_n_Disp - R.VonMisesStress) ./ max(R.VonMisesStress);
-disp("Maximum Relative von Mises Error - Custom Data:");
-disp(max(VMError));
+VMError = abs(VMSigma_n_Disp - R.VonMisesStress) ./ R.VonMisesStress;
+disp(strcat("Maximum Relative von Mises Error - Custom Data: ", num2str(max(VMError))));
+disp(strcat("Maximum Porcentual von Mises Error - Custom Data:",num2str(max(VMError) * 100), "%"));
 
 
 
@@ -213,7 +214,7 @@ disp(max(VMError));
 
 
 
-
+%-------------------------------------------------------------------
 
 
 % Computation of the Elasticity Matrix (Material Stifness Matrix) from

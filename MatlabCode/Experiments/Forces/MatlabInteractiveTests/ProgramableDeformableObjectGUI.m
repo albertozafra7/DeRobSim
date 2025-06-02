@@ -36,10 +36,10 @@ function ProgramableDeformableObjectGUI
     handles.thresholdEdit = uieditfield(fig, 'numeric', 'Position', [20 130 110 22], 'Value', 0.2, 'ValueChangedFcn', @updateThreshold);
     
     % Young Modulus
-    handles.youngEdit = uieditfield(fig, 'numeric', 'Position', [460 140 110 22], 'Value', 210e10, 'ValueChangedFcn', @updateYoungModulus);
+    handles.youngEdit = uieditfield(fig, 'numeric', 'Position', [460 140 110 22], 'Value', 3000, 'ValueChangedFcn', @updateYoungModulus);
     
     % Poisson Ratio
-    handles.poissonEdit = uieditfield(fig, 'numeric', 'Position', [460 80 110 22], 'Value', 0.3, 'ValueChangedFcn', @updatePoisson);
+    handles.poissonEdit = uieditfield(fig, 'numeric', 'Position', [460 80 110 22], 'Value', 0.01, 'ValueChangedFcn', @updatePoisson);
     
     % Load Data Button
     handles.loadButton = uibutton(fig, 'Position', [590 160 80 22], 'Text', 'Load Data', 'ButtonPushedFcn', @loadData);
@@ -100,12 +100,8 @@ function ProgramableDeformableObjectGUI
     % Get the triangles and tetrahedra of the object
     shp = alphaShape(X(:), Y(:), Z(:));
     surfTriangles = boundaryFacets(shp);
-    gm = fegeometry([X(:), Y(:), Z(:)], surfTriangles);
-    model = femodel(AnalysisType="structuralStatic", Geometry=gm);
-    model.MaterialProperties = materialProperties(YoungsModulus=210e10, PoissonsRatio=0.3, MassDensity=2.7e-6);
-    model = generateMesh(model, GeometricOrder="linear");
-    initialTetPositions = model.Geometry.Mesh.Nodes';
-    tetrahedra = model.Geometry.Mesh.Elements';
+    initialTetPositions = omesh.shape;
+    tetrahedra = omesh.elements;
 
     % Jacobian setup
     N = 8;
@@ -141,13 +137,13 @@ function ProgramableDeformableObjectGUI
         'surfTriangles', surfTriangles,...
         'initialTetPoses', initialTetPositions,...
         'meshTetrahedra', tetrahedra,...
-        'meshModel', model.Geometry.Mesh,...
+        'meshModel', omesh,...
         'fixed', false(nParticles, 1),...
         'selected', false(nParticles, 1),...
         'prevPartSelected', NaN,...
         'selectThreshold', selectionThreshold,...
-        'poissonRatio', 0.3,...
-        'YoungModulus', 210e10,...
+        'poissonRatio', 0.01,...
+        'YoungModulus', 3000,...
         'scatterPlot', [],...
         'initialScatterPlot', [],...
         'ax', ax,...
@@ -297,10 +293,11 @@ function ProgramableDeformableObjectGUI
         surfaceDisplacements = data.positions - data.initialPositions;
         [currMeshPositions, currMeshDisp] = interpolateParticles(double(data.initialPositions), double(surfaceDisplacements), data.initialTetPoses);
         [VMSigma, Stress] = Compute3DvonMises(data.initialTetPoses, currMeshPositions, data.meshTetrahedra, data.YoungModulus, data.poissonRatio);
-        pdeplot3D(data.meshModel,...
-                  'Parent', data.ax_vm, ...
-                  'ColorMapData', VMSigma, ...
-                  'Deformation', currMeshDisp);
+        % pdeplot3D(data.meshModel,...
+        %           'Parent', data.ax_vm, ...
+        %           'ColorMapData', VMSigma, ...
+        %           'Deformation', currMeshDisp);
+        trisurf(omesh.elements, data.initialPositions(:,1), data.initialPositions(:,2), data.initialPositions(:,3), VMSigma, 'EdgeColor', 'none', 'Parent', data.ax_vm);
         if data.recordJacobian
             data.vmValues = [data.vmValues, VMSigma];
         end
@@ -551,9 +548,9 @@ function ProgramableDeformableObjectGUI
                            -0.5,  0.5,  0.0];
         fig.UserData = data;
         updatePlot();
-        if isfield(data, 'ax_vm') && isvalid(data.ax_vm)
-            updateVonMises();
-        end
+        % if isfield(data, 'ax_vm') && isvalid(data.ax_vm)
+        %     updateVonMises();
+        % end
     end
 
     function keyPress(~, event)

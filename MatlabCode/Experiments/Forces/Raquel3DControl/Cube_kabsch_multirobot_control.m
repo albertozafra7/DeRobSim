@@ -26,7 +26,7 @@ use_real_CBF = true;            % Applies the real conditions of CBF to evaluate
 plot_Tetramesh = false;         % Plots the tetrahedral mesh of the object
 
 % Simulation Real-time Plot
-plot_LiveVonMises = false;      % Opens a GUI plotting the stress evolution during the simulation
+plot_LiveVonMises = true;      % Opens a GUI plotting the stress evolution during the simulation
 plot_LiveCBF = true;            % Opens a GUI plotting the simulation evolution
 
 % Control Results Plot
@@ -70,7 +70,7 @@ switch moveNdim
     case 2
         niters = 500;
     otherwise
-        niters = 700;
+        niters = 1700;
 end
 
 if use_waypoints 
@@ -87,7 +87,7 @@ u_sat = 1.5;                    % Velocity Saturation Value (m/s)
 
 % Load the Precomputed Jacobian Matrix
 % load('.\Experiments\Forces\MatlabInteractiveTests\JacobianUnitaryCube.mat');
-load('.\Experiments\Forces\MatlabInteractiveTests\JacobianProgramaticallyTest.mat');
+load('.\Experiments\Forces\MatlabInteractiveTests\JacobianProgramaticallyTest_v3.mat');
 clear agent_actions mesh_model n_experiments particle_displacements vonMisesValues;
 
 % Matrices for control formulation
@@ -102,14 +102,23 @@ view_2 = 18.4354;
 %% Control Gains
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Gain values for the control
-k_H = 50;        % for moving toward shape-preserving transformation
-k_G = 5;         % for moving toward a configuration consistent with our deformation modes
+% Gain values for the control --> Focuses on arriving to the target positions
+k_H = 1;        % for moving toward shape-preserving transformation
+k_G = 50;         % for moving toward a configuration consistent with our deformation modes
 k_c = 1;         % for centroid translation
-k_s = 50;        % for scaling
-k_Hd = 1.5;      % for scaling and orientation
+k_s = 0.5;        % for scaling
+k_Hd = 0.8;      % for scaling and orientation
 kCBF = 1;        % for controllig the stress avoidance influence
-cbf_alpha = 1;   % for controlling the risks taken by the barrier function
+cbf_alpha = 10;   % for controlling the risks taken by the barrier function
+
+% Gain values for the control --> Focuses on having first the desired shape and then moving towards the target positions
+% k_H = 50;        % for moving toward shape-preserving transformation
+% k_G = 50;         % for moving toward a configuration consistent with our deformation modes
+% k_c = 1;         % for centroid translation
+% k_s = 50;        % for scaling
+% k_Hd = 1.5;      % for scaling and orientation
+% kCBF = 1;        % for controllig the stress avoidance influence
+% cbf_alpha = 0.5;   % for controlling the risks taken by the barrier function
 
 % Target formation scale and rotation
 sd = 1;          % Target Scale (1 = no change)
@@ -177,7 +186,7 @@ p_cbf = p0;     % p_cbf matrix 3Nx1
 
 %% Desired Configurations
 % Desired Scale Factor
-sd0 = 1; % No Change
+sd0 = 3.5; % No Change
 
 % Desired Rotation Angles
 thd0_x = 0*pi/180;    % 0 deg
@@ -206,6 +215,7 @@ switch moveNdim
     otherwise
         % Desired (target) Centroid Position
         gd = g0 + [-2.7, 3.0, 1.0]'; % We want to have a movement in the 3 axis (but rotating the object)
+        % gd = g0 + [0.0 0.0 0.0]';
         gd_final = gd; % Used later in the control logic (waypoint handling)
 end
 
@@ -213,12 +223,17 @@ end
 % Rotation Matrix Desired Configuration
 Rd = eul2rotm([thd thd thd], 'XYZ');
 Rd_T = kron(eye(N), Rd);
-PT = (sd * Rd_T * pd) + reshape(gd * ones(1,N), [3*N,1]);     % final configuration with centroid in gd (3*Na x 1)
+PT = (sd * Rd_T * pd) + reshape(gd * ones(1,N), [3*N,1]); % Final desired configuration with centroid in gd (3*Na x 1)
 
 % Control terms are calculated with c. As the code is defined here, we can
 % replace c with pd in the control terms code or do the following:
-c = K * PT; % Desired centroid config (3*Na x 1)
+c = K * PT; % Desired positions of the agents in a coordinate system centered at the centroid (3*Na x 1)
+p_agentsFrom_g0 = reshape(c,[3,N])';% It is C but with another shape (Nax3)
 
+Ce = CeMatrixComputation(E,nu);
+Le = LeMatrixComputation(omesh.elements,Pob0');
+% Compute the MaxStress
+MaxStress = yield_stress/SF;
 
 %% Waypoints definition
 
@@ -415,6 +430,22 @@ if plot_LiveCBF
 
 end
 
+% Seting up the stress colorbar
+% Define proportions for each color phase
+nColors = 256;
+g = round(0.10 * nColors);   % Green
+y = round(0.20 * nColors);   % Yellow
+o = round(0.30 * nColors);   % Orange
+r = nColors - g - y - o;     % Red
+
+% Define color transitions
+green   = [linspace(0,1,g)', ones(g,1), zeros(g,1)]; % dark → green
+yellow  = [ones(y,1), linspace(1,1,y)', zeros(y,1)]; % green → yellow
+orange  = [ones(o,1), linspace(1,0.5,o)', zeros(o,1)]; % yellow → orange
+red     = [ones(r,1), linspace(0.5,0,r)', zeros(r,1)]; % orange → red
+
+% Combine the segments
+customMap = [green; yellow; orange; red];
 
 %% Animate the Connections between the agents
 
@@ -441,14 +472,30 @@ if plot_LiveCBF
     for i = 1:N
         plot3(p0(3*i-2,1), p0(3*i-1,1), p0(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 15);
         plot3(PT(3*i-2,1), PT(3*i-1,1), PT(3*i,1), 'o', 'color', color_robots(i), 'MarkerSize', 7, 'LineWidth', 1.5);
-        robot_tr(i) = plot3(p_3D(3*i-2,1), p_3D(3*i-1,1), p_3D(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 30);
-        robot_path(i) = plot3(p_3D(3*i-2,:), p_3D(3*i-1,:), p_3D(3*i,:), '-', 'color', color_robots(i), 'linewidth', 2); % data.path lines
+        robot_tr_cbf(i) = plot3(p_cbf(3*i-2,1), p_cbf(3*i-1,1), p_cbf(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 30);
+        robot_tr_3D(i) = plot3(p_3D(3*i-2,1), p_3D(3*i-1,1), p_3D(3*i,1), '*', 'color', color_robots(i), 'MarkerSize', 15);
+        robot_path_cbf(i) = plot3(p_cbf(3*i-2,:), p_cbf(3*i-1,:), p_cbf(3*i,:), '-', 'color', color_robots(i), 'linewidth', 2); % data.path lines
+        robot_path_3D(i) = plot3(p_3D(3*i-2,:), p_3D(3*i-1,:), p_3D(3*i,:), '--', 'color', color_robots(i), 'linewidth', 2); % data.path lines
+
+        % Index of the robot
+        text_offset = 0.1; % adjust as needed
+        robot_index_cbf(i) = text(p_cbf(3*i-2,1) + text_offset, ...
+                                  p_cbf(3*i-1,1) + text_offset, ...
+                                  p_cbf(3*i,1) + text_offset, ...
+                                  sprintf('%d', i), 'Color', color_robots(i), 'FontSize', 10, 'FontWeight', 'bold');
+
+        % Velocity
+        u_cbf = zeros(3*N,1);
+        arrow_scale = 0.5;  % scale to make arrows a reasonable length
+        robot_vel_cbf(i) = quiver3(p_cbf(3*i-2,1), p_cbf(3*i-1,1), p_cbf(3*i,1), ...
+                                   arrow_scale*u_cbf(3*i-2,1), arrow_scale*u_cbf(3*i-1,1), arrow_scale*u_cbf(3*i,1), ...
+                                   'Color', color_robots(i), 'LineWidth', 1.5, 'MaxHeadSize', 0.5);
     end
     % Lines between robots
     for i = 1:size(pairs,1)
         plot3([p0(3*pairs(i,1)-2), p0(3*pairs(i,2)-2)], [p0(3*pairs(i,1)-1), p0(3*pairs(i,2)-1)], [p0(3*pairs(i,1)), p0(3*pairs(i,2))], '--', 'color', [0.5 0.5 0.8], 'linewidth', 1.5, 'HandleVisibility', 'off');
         plot3([PT(3*pairs(i,1)-2), PT(3*pairs(i,2)-2)], [PT(3*pairs(i,1)-1), PT(3*pairs(i,2)-1)], [PT(3*pairs(i,1)), PT(3*pairs(i,2))], '--', 'color', [0.8 0.5 0.5], 'linewidth', 1.5, 'HandleVisibility', 'off');
-        robot_lines(i) = plot3([p_3D(3*pairs(i,1)-2), p_3D(3*pairs(i,2)-2)], [p_3D(3*pairs(i,1)-1), p_3D(3*pairs(i,2)-1)], [p_3D(3*pairs(i,1)), p_3D(3*pairs(i,2))], '--', 'color', [0.5 0.8 0.5], 'linewidth', 1.5, 'HandleVisibility', 'off');
+        robot_lines(i) = plot3([p_cbf(3*pairs(i,1)-2), p_cbf(3*pairs(i,2)-2)], [p_cbf(3*pairs(i,1)-1), p_cbf(3*pairs(i,2)-1)], [p_cbf(3*pairs(i,1)), p_cbf(3*pairs(i,2))], '--', 'color', [0.5 0.8 0.5], 'linewidth', 1.5, 'HandleVisibility', 'off');
     end
     plot3(g0(1,:), g0(2,:), g0(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
     % plot3(gd(1,:), gd(2,:), gd(3,:), '+', 'markersize', 5, 'color', "#9f9f9f", 'markerfacecolor', "#9f9f9f", 'linewidth', 1.2)
@@ -459,7 +506,7 @@ if plot_LiveCBF
 
     if use_obstacles
         for i = 1:size(pairs,1)
-            object_lines(i) = plot3([p_3D(3*pairs(i,1)-2), p_3D(3*pairs(i,2)-2)], [p_3D(3*pairs(i,1)-1), p_3D(3*pairs(i,2)-1)], [p_3D(3*pairs(i,1)), p_3D(3*pairs(i,2))], 'k-', 'linewidth', 0.5);
+            object_lines(i) = plot3([p_cbf(3*pairs(i,1)-2), p_cbf(3*pairs(i,2)-2)], [p_cbf(3*pairs(i,1)-1), p_cbf(3*pairs(i,2)-1)], [p_cbf(3*pairs(i,1)), p_cbf(3*pairs(i,2))], 'k-', 'linewidth', 0.5);
         end
         
         % Obtacles plotting
@@ -503,7 +550,6 @@ if use_obstacles == 1
                        
 end
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -533,15 +579,37 @@ for it_loop = 1:niters
             figure(trajectory_fig);
             % Plot the robots in their current position in each iteration
             for i = 1:N
-                % Current Position
-                robot_tr(i).XData = p_cbf(3*i-2,1);
-                robot_tr(i).YData = p_cbf(3*i-1,1);
-                robot_tr(i).ZData = p_cbf(3*i,1);
+                % Current Position -- CBF
+                robot_tr_cbf(i).XData = p_cbf(3*i-2,1);
+                robot_tr_cbf(i).YData = p_cbf(3*i-1,1);
+                robot_tr_cbf(i).ZData = p_cbf(3*i,1);
 
-                % Path
-                robot_path(i).XData = ps_cbf(3*i-2,:);
-                robot_path(i).YData = ps_cbf(3*i-1,:);
-                robot_path(i).ZData = ps_cbf(3*i,:);
+                % Robot index plot
+                robot_index_cbf(i).Position = [p_cbf(3*i-2,1) p_cbf(3*i-1,1) p_cbf(3*i,1)] + text_offset;
+                % Robot vel plot
+                robot_vel_cbf(i).XData = p_cbf(3*i-2,1);
+                robot_vel_cbf(i).YData = p_cbf(3*i-1,1);
+                robot_vel_cbf(i).ZData = p_cbf(3*i,1);
+                robot_vel_cbf(i).UData = u_cbf(3*i-2,1)*arrow_scale;
+                robot_vel_cbf(i).VData = u_cbf(3*i-1,1)*arrow_scale;
+                robot_vel_cbf(i).WData = u_cbf(3*i,1)*arrow_scale;
+
+
+
+                % Current Position -- 3D
+                robot_tr_3D(i).XData = p_3D(3*i-2,1);
+                robot_tr_3D(i).YData = p_3D(3*i-1,1);
+                robot_tr_3D(i).ZData = p_3D(3*i,1);
+
+                % Path -- CBF
+                robot_path_cbf(i).XData = ps_cbf(3*i-2,:);
+                robot_path_cbf(i).YData = ps_cbf(3*i-1,:);
+                robot_path_cbf(i).ZData = ps_cbf(3*i,:);
+
+                % Path -- 3D
+                robot_path_3D(i).XData = ps_3D(3*i-2,:);
+                robot_path_3D(i).YData = ps_3D(3*i-1,:);
+                robot_path_3D(i).ZData = ps_3D(3*i,:);
             end
             for i = 1:size(pairs,1)
                 robot_lines(i).XData = [p_cbf(3*pairs(i,1)-2), p_cbf(3*pairs(i,2)-2)];
@@ -551,9 +619,9 @@ for it_loop = 1:niters
 
             if use_obstacles
                 for i = 1:size(object_lines,2)
-                    object_lines(i).XData = [p_3D(3*pairs(i,1)-2), p_3D(3*pairs(i,2)-2)];
-                    object_lines(i).YData = [p_3D(3*pairs(i,1)-1), p_3D(3*pairs(i,2)-1)];
-                    object_lines(i).ZData = [p_3D(3*pairs(i,1)), p_3D(3*pairs(i,2))];
+                    object_lines(i).XData = [p_cbf(3*pairs(i,1)-2), p_cbf(3*pairs(i,2)-2)];
+                    object_lines(i).YData = [p_cbf(3*pairs(i,1)-1), p_cbf(3*pairs(i,2)-1)];
+                    object_lines(i).ZData = [p_cbf(3*pairs(i,1)), p_cbf(3*pairs(i,2))];
                 end
             end
         catch
@@ -588,17 +656,43 @@ for it_loop = 1:niters
     agent_destinations = p_agentsFrom_g0 + repmat(gd',N,1);
     agent_destinations = agent_destinations'; % (3xNa)
 
+    % -----> Upscale <------
+    % scale_factor = 3.5; % Test with 1.5 (moderate) or 2.0 (aggressive)
+    % agent_destinations = [ 0.5*scale_factor,  0.5*scale_factor,  1.0;... % Agent 1
+    %                        0.5*scale_factor, -0.5*scale_factor,  1.0;... % Agent 2
+    %                       -0.5*scale_factor, -0.5*scale_factor,  1.0;... % Agent 3
+    %                       -0.5*scale_factor,  0.5*scale_factor,  1.0;... % Agent 4
+    %                        0.5*scale_factor,  0.5*scale_factor,  0.0;... % Agent 5
+    %                        0.5*scale_factor, -0.5*scale_factor,  0.0;... % Agent 6
+    %                       -0.5*scale_factor, -0.5*scale_factor,  0.0;... % Agent 7
+    %                       -0.5*scale_factor,  0.5*scale_factor,  0.0]';   % Agent 8
+
+    % ----> Agent 1 overstressing <----
+    % agent_destinations = [ 0.5*scale_factor*5,  0.5*scale_factor,  1.0;... % Agent 1
+    %                        0.5*scale_factor, -0.5*scale_factor,  1.0;... % Agent 2
+    %                       -0.5*scale_factor, -0.5*scale_factor,  1.0;... % Agent 3
+    %                       -0.5*scale_factor,  0.5*scale_factor,  1.0;... % Agent 4
+    %                        0.5*scale_factor,  0.5*scale_factor,  0.0;... % Agent 5
+    %                        0.5*scale_factor, -0.5*scale_factor,  0.0;... % Agent 6
+    %                       -0.5*scale_factor, -0.5*scale_factor,  0.0;... % Agent 7
+    %                       -0.5*scale_factor,  0.5*scale_factor,  0.0]';   % Agent 8
+
+    % -----> Agents Transport and Twist <-----
+    % agent_destinations = [-3.2000   -3.2000   -2.2000   -2.2000   -2.2000   -2.2000   -3.2000   -3.2000;
+    %                        2.5000    3.5000    3.5000    2.5000    3.5000    2.5000    2.5000    3.5000;
+    %                        2.0000    2.0000    2.0000    2.0000    1.0000    1.0000    1.0000    1.0000];
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% Control Algorithm
         
     if use_real_CBF
         %%%%%%%%%% - CBF CONTROL - %%%%%%%%%%
-        [~, ~, u_3D, ~, ~, ~, ~, ~, u_cbf, agent_cbf_positions, ~, ~, ~, ~, ~, ~, ~, vm_stress, stress_tensor, curr_elem_stress, curr_strain, A, b, grad_h, scaled_delta, pred_nodal_stresses, pred_stresses_element, pred_strains, element_displacements, u_hat_cbf, Le_cbf, Ce_cbf] = ForceControl3D_Debug(Pob0', Pob_cbf', reshape(p_cbf, [ndims,N]), agent_destinations, omesh.elements, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
+        [u_cbf, ~, u_3D, ~, ~, ~, ~, ~, ~, agent_cbf_positions, ~, ~, ~, ~, ~, ~, ~, vm_stress, stress_tensor, curr_elem_stress, curr_strain, A, b, grad_h, scaled_delta, pred_nodal_stresses, pred_stresses_element, pred_strains, element_displacements] = ForceControl3D_Debug(Pob0', Pob_cbf', reshape(p_cbf, [ndims,N]), agent_destinations, omesh.elements, J, Ce, Le, MaxStress, kCBF, cbf_alpha, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
+        u_cbf = reshape(u_cbf, [3*N,1]);
         %%%%%%%%%% - CBF CONTROL - %%%%%%%%%%
 
         % Displacements
-        u_hats_cbf = cat(3, u_hats_cbf, squeeze(u_hat_cbf)); % (12xN_tetxNiter)
-        element_disps_cbf = cat(3, element_disps_cbf, reshape(element_displacements*u_3D,[12,size(u_hat_cbf,3)]));
+        % u_hats_cbf = cat(3, u_hats_cbf, squeeze(u_hat_cbf)); % (12xN_tetxNiter)
+        % element_disps_cbf = cat(3, element_disps_cbf, reshape(element_displacements*u_3D,[12,size(u_hat_cbf,3)]));
 
         % Current Stresses
         vm_stresses_cbf = [vm_stresses_cbf, vm_stress];
@@ -614,30 +708,31 @@ for it_loop = 1:niters
         scaled_deltas_cbf = cat(3, scaled_deltas_cbf, scaled_delta);
 
         % Predicted Stresses
-        pred_nodal_stresses = pred_nodal_stresses*u_3D;
+        pred_nodal_stresses = pred_nodal_stresses*u_cbf;
         % pred_nodal_stresses = pred_nodal_stresses*u_cbf;
         pred_nodal_stresses = reshape(pred_nodal_stresses,[6,size(omesh.shape,1)]);
         pred_stresses_cbf = cat(3, pred_stresses_cbf, pred_nodal_stresses); % Per node
         
-        pred_element_stress_cbf = reshape(pred_stresses_element*u_3D,[6,size(omesh.elements,1)]);
+        pred_element_stress_cbf = reshape(pred_stresses_element*u_cbf,[6,size(omesh.elements,1)]);
         pred_elem_stresses_cbf = cat(3, pred_elem_stresses_cbf, pred_element_stress_cbf); % per element
         % Predicted von Mises Stress
         [pred_vm_stress_cbf,~] = VonMisesStressComp(pred_element_stress_cbf, omesh.elements, size(omesh.shape,1));
         pred_vmStresses_cbf = [pred_vmStresses_cbf, pred_vm_stress_cbf];
 
         % Gradients of h
-        grads_hs = [grads_hs, grad_h*u_3D];
+        grads_hs = [grads_hs, grad_h*u_cbf];
         % grads_hs = [grads_hs, grad_h*u_cbf];
 
 
     end
 
+    %%%%%%%%%% - 3D CONTROL - %%%%%%%%%%
     % [u, U_f, U_H, u_G, U_s, u_c, U_Hd, agent_positions, agent_destinations, gamma_H, gamma_G, eg, es, eth, eth_individual] = TransportationControl3D_Debug(reshape(p, [ndims,N]), agent_destinations, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
-    [~, U_f, u, U_H, u_G, U_s, u_c, U_Hd, u_3D_cbf, agent_positions_3D, agent_destinations_3D, gamma_H_3D, gamma_G_3D, eg_3D, es_3D, eth_3D, eth_individual_3D, curr_vmSigma_3D, curr_SigmaTensor_3D, curr_elem_stress_3D, curr_strain_3D, ~, ~, ~, scaled_delta_3D, pred_nodal_stresses_3D, pred_stresses_element_3D, pred_strain_3D, element_displacements_3D, u_hat_3D, Le_3D, Ce_3D] = ForceControl3D_Debug(Pob0', Pob_3D', reshape(p_3D, [ndims,N]), agent_destinations, omesh.elements, J, E, nu, yield_stress, SF, kCBF, cbf_alpha, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
-
+    [~, U_f, u, U_H, u_G, U_s, u_c, U_Hd, u_3D_cbf, agent_positions_3D, agent_destinations_3D, gamma_H_3D, gamma_G_3D, eg_3D, es_3D, eth_3D, eth_individual_3D, curr_vmSigma_3D, curr_SigmaTensor_3D, curr_elem_stress_3D, curr_strain_3D, ~, ~, ~, scaled_delta_3D, pred_nodal_stresses_3D, pred_stresses_element_3D, pred_strain_3D, element_displacements_3D] = ForceControl3D_Debug(Pob0', Pob_3D', reshape(p_3D, [ndims,N]), agent_destinations, omesh.elements, J, Ce, Le, MaxStress, kCBF, cbf_alpha, k_H, k_G, k_s, k_c, k_Hd, sd, thd, u_sat);
+    %%%%%%%%%% - 3D CONTROL - %%%%%%%%%%
     % Displacements
-    u_hats_3D = cat(3, u_hats_3D, squeeze(u_hat_3D)); % (12xN_tetxNiter)
-    element_disps_3D = cat(3, element_disps_3D, reshape(element_displacements_3D*u,[12,size(u_hat_3D,3)]));
+    % u_hats_3D = cat(3, u_hats_3D, squeeze(u_hat_3D)); % (12xN_tetxNiter)
+    % element_disps_3D = cat(3, element_disps_3D, reshape(element_displacements_3D*u,[12,size(u_hat_3D,3)]));
 
     % Current Stresses
     vm_stresses_3D = [vm_stresses_3D, curr_vmSigma_3D];
@@ -667,13 +762,10 @@ for it_loop = 1:niters
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% CBF
 
-    % Compute the MaxStress
-    MaxStress = yield_stress/SF;
-
-    H = 2 * eye(3*N);
-    f = -2 * u(:);
 
     if ~use_real_CBF
+        H = 2 * eye(3*N);
+        f = -2 * u(:);
         if it_loop > niters/2 && force_CBF
             % A*u >= b --> La cbf actúa
             A = ones(N,3*N);
@@ -766,8 +858,34 @@ for it_loop = 1:niters
     
 
     if plot_LiveVonMises
-        figure(vonMises_fig);
-        trisurf(omesh.elements, Pob0(1,:)', Pob0(2,:)', Pob0(3,:)', vm_stress, 'EdgeColor', 'none');
+        try
+            figure(vonMises_fig);
+
+            % ------ CBF ------
+            subplot(1,2,1);
+            trisurf(omesh.elements, Pob0(1,:)', Pob0(2,:)', Pob0(3,:)', vm_stress, 'EdgeColor', 'none');
+            colormap(customMap);
+            % Clamp color scaling so that values >= yield_stress are shown as red
+            caxis([0 MaxStress]);
+            
+            % Optional: colorbar
+            colorbar;
+            title("Von Mises CBF");
+
+            % ------ 3D ------
+            subplot(1,2,2);
+            trisurf(omesh.elements, Pob0(1,:)', Pob0(2,:)', Pob0(3,:)', curr_vmSigma_3D, 'EdgeColor', 'none');
+            colormap(customMap);
+            % Clamp color scaling so that values >= yield_stress are shown as red
+            caxis([0 MaxStress]);
+            
+            % Optional: colorbar
+            colorbar;
+            title("Von Mises 3D");
+        catch
+            disp("Von Mises Live Window Closed");
+            plot_LiveVonMises = false;
+        end
     end
 
     
@@ -1199,7 +1317,12 @@ if plot_VonMisesMax
     % % Cube plot
     % VMEvolFig = figure;
     % h = trisurf(omesh.elements, Pob0(1,:)', Pob0(2,:)', Pob0(3,:)', 'EdgeColor', 'none');
-    % colormap(jet); colorbar; caxis([min(vm_stresses(:)) max(vm_stresses(:))]);
+    % colormap(customMap);
+    % % Clamp color scaling so that values >= yield_stress are shown as red
+    % caxis([0 yield_stress]);
+    % 
+    % % Optional: colorbar
+    % colorbar;
     % figure(VMEvolFig);
     % 
     % for iter = 1:niters
