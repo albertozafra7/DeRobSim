@@ -186,7 +186,7 @@ p_cbf = p0;     % p_cbf matrix 3Nx1
 
 %% Desired Configurations
 % Desired Scale Factor
-sd0 = 3.5; % No Change
+sd0 = 1; % No Change
 
 % Desired Rotation Angles
 thd0_x = 0*pi/180;    % 0 deg
@@ -214,8 +214,8 @@ switch moveNdim
         gd_final = gd; % Used later in the control logic (waypoint handling)
     otherwise
         % Desired (target) Centroid Position
-        gd = g0 + [-2.7, 3.0, 1.0]'; % We want to have a movement in the 3 axis (but rotating the object)
-        % gd = g0 + [0.0 0.0 0.0]';
+        % gd = g0 + [-2.7, 3.0, 1.0]'; % We want to have a movement in the 3 axis (but rotating the object)
+        gd = g0 + [0.0 0.0 0.0]';
         gd_final = gd; % Used later in the control logic (waypoint handling)
 end
 
@@ -657,7 +657,7 @@ for it_loop = 1:niters
     agent_destinations = agent_destinations'; % (3xNa)
 
     % -----> Upscale <------
-    % scale_factor = 3.5; % Test with 1.5 (moderate) or 2.0 (aggressive)
+    % scale_factor = 1; % Test with 1.5 (moderate) or 2.0 (aggressive)
     % agent_destinations = [ 0.5*scale_factor,  0.5*scale_factor,  1.0;... % Agent 1
     %                        0.5*scale_factor, -0.5*scale_factor,  1.0;... % Agent 2
     %                       -0.5*scale_factor, -0.5*scale_factor,  1.0;... % Agent 3
@@ -668,7 +668,7 @@ for it_loop = 1:niters
     %                       -0.5*scale_factor,  0.5*scale_factor,  0.0]';   % Agent 8
 
     % ----> Agent 1 overstressing <----
-    % agent_destinations = [ 0.5*scale_factor*5,  0.5*scale_factor,  1.0;... % Agent 1
+    % agent_destinations = [ 0.5*scale_factor*10,  0.5*scale_factor,  1.0;... % Agent 1
     %                        0.5*scale_factor, -0.5*scale_factor,  1.0;... % Agent 2
     %                       -0.5*scale_factor, -0.5*scale_factor,  1.0;... % Agent 3
     %                       -0.5*scale_factor,  0.5*scale_factor,  1.0;... % Agent 4

@@ -1,0 +1,470 @@
+function results = runCubeKabschExperiment(varargin)
+%% Parse input parameters
+p = inputParser;
+addParameter(p, 'use_waypoints', false);
+addParameter(p, 'use_rotation_z', false);
+addParameter(p, 'use_obstacles', false);
+addParameter(p, 'moveNdim', 3);
+addParameter(p, 'force_CBF', false);
+addParameter(p, 'use_real_CBF', true);
+addParameter(p, 'N', 8);
+addParameter(p, 'dt', 0.01);
+addParameter(p, 'niters', 1700);
+addParameter(p, 'E', 3000);
+addParameter(p, 'nu', 0.01);
+addParameter(p, 'kext', 10);
+addParameter(p, 'yield_stress', 210e2);
+addParameter(p, 'SF', 2.5);
+addParameter(p, 'u_sat', 1.5);
+addParameter(p, 'k_H', 0.5);
+addParameter(p, 'k_G', 0.5);
+addParameter(p, 'k_c', 1);
+addParameter(p, 'k_s', 0.5);
+addParameter(p, 'k_Hd', 0.8);
+addParameter(p, 'kCBF', 1);
+addParameter(p, 'cbf_alpha', 0.5);
+addParameter(p, 'sd', 1);
+addParameter(p, 'thd', 0);
+addParameter(p, 'p_init', [ 0.5,  0.5,  1.0;...
+           0.5, -0.5,  1.0;...
+          -0.5, -0.5,  1.0;...
+          -0.5,  0.5,  1.0;...
+           0.5,  0.5,  0.0;...
+           0.5, -0.5,  0.0;...
+          -0.5, -0.5,  0.0;...
+          -0.5,  0.5,  0.0]);
+addParameter(p, 'agent_destinations', [ 0.5,  0.5,  1.0;... % Agent 1
+                           0.5*scale_factor, -0.5,  1.0;... % Agent 2
+                          -0.5*scale_factor, -0.5*scale_factor,  1.0;... % Agent 3
+                          -0.5*scale_factor,  0.5*scale_factor,  1.0;... % Agent 4
+                           0.5*scale_factor,  0.5*scale_factor,  0.0;... % Agent 5
+                           0.5*scale_factor, -0.5*scale_factor,  0.0;... % Agent 6
+                          -0.5*scale_factor, -0.5*scale_factor,  0.0;... % Agent 7
+                          -0.5*scale_factor,  0.5*scale_factor,  0.0]';   % Agent 8)
+addParameter(p, 'recordVideo', false);
+addParameter(p, 'videoPrefix', 'simulation');
+
+parse(p, varargin{:});
+config = p.Results;
+
+%% Add path of the aux files
+Aux_path = genpath('Multirobot_control_3D_aux_files');
+if ~isempty(Aux_path)
+    addpath(Aux_path);
+end
+
+%% Initialize all storage arrays
+% Standard 3D Controller
+ps_3D = [];             
+gammas_H_3D = [];       
+gammas_G_3D = [];       
+egs_3D = [];            
+ess_3D = [];            
+eths_3D = [];           
+eth_xs_3D = [];         
+eth_ys_3D = [];         
+eth_zs_3D = [];         
+vs_3D = [];             
+nvs_3D = [];            
+
+% Control Results
+u_Hs = [];              
+u_Gs = [];              
+U_ss = [];              
+u_cs = [];              
+U_Hds = [];             
+u_cbfs = [];            
+us = [];                
+
+% CBF
+ps_cbf = [];            
+prop_nvs_cbf = [];      
+prop_vs_cbf = [];       
+nvs_cbf = [];           
+vs_cbf = [];            
+As = [];                
+bs = [];                
+gammas_H_cbf = [];      
+gammas_G_cbf = [];      
+egs_cbf = [];           
+ess_cbf = [];           
+eths_cbf = [];          
+eth_xs_cbf = [];        
+eth_ys_cbf = [];        
+eth_zs_cbf = [];        
+grads_hs = [];          
+opt_hs = [];            
+
+% Stress Related
+% CBF
+vm_stresses_cbf = [];   
+tensor_stresses_cbf= [];
+pred_strains_cbf = [];  
+strains_cbf = [];       
+elem_stresses_cbf = []; 
+pred_stresses_cbf = []; 
+pred_vmStresses_cbf =[];
+scaled_deltas_cbf = []; 
+pred_elem_stresses_cbf = [];
+% 3D Controller
+vm_stresses_3D = [];    
+tensors_stresses_3D =[];
+scaled_deltas_3D = [];  
+pred_strains_3D = [];   
+elem_stresses_3D = [];  
+pred_stresses_3D = [];  
+pred_vmStresses_3D = []; 
+pred_elem_stresses_3D = [];
+
+%% Video recording setup
+if config.recordVideo
+    videoObj_traj = VideoWriter([config.videoPrefix '_trajectory'], 'MPEG-4');
+    videoObj_traj.FrameRate = 1/config.dt;
+    open(videoObj_traj);
+    
+    videoObj_vonMises = VideoWriter([config.videoPrefix '_vonMises'], 'MPEG-4');
+    videoObj_vonMises.FrameRate = 1/config.dt;
+    open(videoObj_vonMises);
+    
+    trajectory_fig = figure('Visible', 'off');
+    set(gcf, 'Position', [300, 50, 1000, 650], 'color','w');
+    hold on; box on;
+    
+    vonMises_fig = figure('Visible', 'off');
+    set(gcf, 'Position', [300, 50, 1000, 650], 'color','w');
+    hold on; box on;
+end
+
+%% Object Mesh Parameters
+nx = 5; ny = 5; nz = 5;
+sx = 1; sy = 1; sz = 1;
+scale_ob = 1;
+
+%% Main simulation code
+% (Original script implementation without plotting, only data collection)
+% [This section contains the full implementation from the original script]
+% [All plotting commands are removed except for video capture]
+% [All final plot generation is removed]
+
+% ----------------------- BEGIN ORIGINAL SCRIPT IMPLEMENTATION -----------------------
+%% Object Mesh
+omesh = create_mesh3D(nx, ny, nz, sx * scale_ob, sy * scale_ob, sz * scale_ob);
+omesh.shape = omesh.shape + [0, 0, -1*(min(omesh.shape(:,3))<0)*min(omesh.shape(:,3))];
+
+%% Initial Configurations
+
+
+g0 = mean(config.p_init)';
+g0_rep = repmat(g0', config.N, 1);
+p_agentsFrom_g0 = config.p_init - g0_rep;
+
+s0 = 1;
+th0_x = 0*pi/180;
+th0_y = 0*pi/180;
+th0_z = 0*pi/180;
+
+p_init = reshape(config.p_init', [3*config.N, 1]);
+p00 = kron(eye(config.N) - (1/config.N)*ones(config.N, config.N), eye(3)) * p_init;
+R0 = eul2rotm([th0_x th0_y th0_z], 'XYZ');
+R0 = kron(eye(config.N), R0);
+p0 = (s0 * R0 * p00) + reshape(g0 * ones(1,config.N), [3*config.N,1]);
+
+c = kron(eye(config.N) - (1/config.N)*ones(config.N, config.N), eye(3)) * p00;
+c = kron(eye(config.N) - (1/config.N)*ones(config.N, config.N), eye(3)) * c;
+
+%% Desired Configurations
+sd0 = 1;
+thd0_x = 0*pi/180;
+thd0_y = 0*pi/180;
+if config.use_rotation_z
+    thd0_z = -180*pi/180;
+else
+    thd0_z = 0*pi/180;
+end
+
+Rd0 = eul2rotm([thd0_x thd0_y thd0_z], 'XYZ');
+Rd0 = kron(eye(config.N), Rd0);
+pd = (sd0 * Rd0 * c);
+
+switch config.moveNdim
+    case 1
+        gd = g0 + [-2.7, 0, 0]';
+    case 2
+        gd = g0 + [-2.7, 3.0, 0]';
+    otherwise
+        gd = g0 + [0.0, 0.0, 0.0]';
+end
+gd_final = gd;
+
+Rd = eul2rotm([config.thd, config.thd, config.thd], 'XYZ');
+Rd_T = kron(eye(config.N), Rd);
+PT = (config.sd * Rd_T * pd) + reshape(gd * ones(1,config.N), [3*config.N,1]);
+c = kron(eye(config.N) - (1/config.N)*ones(config.N, config.N), eye(3)) * PT;
+p_agentsFrom_g0 = reshape(c,[3,config.N])';
+
+Ce = CeMatrixComputation(config.E, config.nu);
+Le = LeMatrixComputation(omesh.elements, omesh.shape');
+MaxStress = config.yield_stress/config.SF;
+
+%% Simulation setup
+p_3D = p0;
+p_cbf = p0;
+
+% Agent connections
+pairs = [];
+for i = 1:config.N/2-1
+    pairs = [pairs; [i i+1]; [config.N/2+i config.N/2+i+1]];
+end
+pairs = [pairs; [1 config.N/2]; [config.N/2+1 config.N]];
+for i = 1:config.N/2
+    pairs = [pairs; [i i+config.N/2]];
+end
+pairs = [pairs; [1 7]; [2 8]; [3 5]; [4 6]];
+
+%% Object Simulation
+handled_nodes = [];
+for i = 0:config.N-1
+    differences = omesh.shape - p_init(3*i+1:3*i+3)';
+    [~, idx] = min(sqrt(sum(differences.^2, 2)));
+    handled_nodes = [handled_nodes, idx];
+end
+
+n_iters_arap = 3;
+arap_params = create_params_for_arap(omesh, handled_nodes, [], n_iters_arap);
+Pob_3D = simulate_object_arap(arap_params, omesh.shape', reshape(p_3D, [3,config.N]));
+Pob_cbf = Pob_3D;
+
+%% Main Simulation loop
+for it_loop = 1:config.niters
+    ps_3D = [ps_3D, p_3D];
+    ps_cbf = [ps_cbf, p_cbf];
+    
+    % Simulate object deformation
+    Pob_3D = simulate_object_arap(arap_params, Pob_3D, reshape(p_3D, [3,config.N]));
+    Pob_cbf = simulate_object_arap(arap_params, Pob_cbf, reshape(p_cbf, [3,config.N]));
+    
+    % Waypoint handling
+    if config.use_waypoints && num_waypoint < size(waypoints_g,2)
+        if norm(gd - g) < 0.2
+            num_waypoint = num_waypoint + 1;
+            gd = waypoints_g(:, num_waypoint);
+            c = waypoints_c(:, num_waypoint);
+        end
+    end
+    
+    agent_destinations = p_agentsFrom_g0 + repmat(gd',config.N,1);
+    agent_destinations = agent_destinations';
+    
+    %% Control Algorithm
+    if config.use_real_CBF
+        [u_cbf, ~, u_3D, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, vm_stress, stress_tensor, curr_elem_stress, curr_strain, A, b, grad_h, scaled_delta, pred_nodal_stresses, pred_stresses_element, pred_strains] = ...
+            ForceControl3D_Debug(omesh.shape, Pob_cbf', reshape(p_cbf, [3,config.N]), agent_destinations, omesh.elements, J, Ce, Le, MaxStress, config.kCBF, config.cbf_alpha, config.k_H, config.k_G, config.k_s, config.k_c, config.k_Hd, config.sd, config.thd, config.u_sat);
+        
+        u_cbf = reshape(u_cbf, [3*config.N,1]);
+        vm_stresses_cbf = [vm_stresses_cbf, vm_stress];
+        tensor_stresses_cbf = cat(3, tensor_stresses_cbf, stress_tensor);
+        elem_stresses_cbf = cat(3, elem_stresses_cbf, curr_elem_stress);
+        pred_strains_cbf = cat(3, pred_strains_cbf, reshape(pred_strains*u_3D,[6,size(omesh.elements,1)]));
+        strains_cbf = cat(3, strains_cbf, curr_strain);
+        scaled_deltas_cbf = cat(3, scaled_deltas_cbf, scaled_delta);
+        pred_nodal_stresses = reshape(pred_nodal_stresses*u_cbf,[6,size(omesh.shape,1)]);
+        pred_stresses_cbf = cat(3, pred_stresses_cbf, pred_nodal_stresses);
+        pred_element_stress_cbf = reshape(pred_stresses_element*u_cbf,[6,size(omesh.elements,1)]);
+        pred_elem_stresses_cbf = cat(3, pred_elem_stresses_cbf, pred_element_stress_cbf);
+        [pred_vm_stress_cbf,~] = VonMisesStressComp(pred_element_stress_cbf, omesh.elements, size(omesh.shape,1));
+        pred_vmStresses_cbf = [pred_vmStresses_cbf, pred_vm_stress_cbf];
+        grads_hs = [grads_hs, grad_h*u_cbf];
+    end
+    
+    [~, ~, u, U_H, u_G, U_s, u_c, U_Hd, ~, ~, ~, gamma_H_3D, gamma_G_3D, eg_3D, es_3D, eth_3D, eth_individual_3D, curr_vmSigma_3D, curr_SigmaTensor_3D, curr_elem_stress_3D, curr_strain_3D, ~, ~, ~, scaled_delta_3D, pred_nodal_stresses_3D, pred_stresses_element_3D, pred_strain_3D] = ...
+        ForceControl3D_Debug(omesh.shape, Pob_3D', reshape(p_3D, [3,config.N]), agent_destinations, omesh.elements, J, Ce, Le, MaxStress, config.kCBF, config.cbf_alpha, config.k_H, config.k_G, config.k_s, config.k_c, config.k_Hd, config.sd, config.thd, config.u_sat);
+    
+    % Store 3D controller data
+    gammas_H_3D = [gammas_H_3D; gamma_H_3D];
+    gammas_G_3D = [gammas_G_3D; gamma_G_3D];
+    egs_3D = [egs_3D; eg_3D];
+    ess_3D = [ess_3D; es_3D];
+    eths_3D = [eths_3D; eth_3D];
+    eth_xs_3D = [eth_xs_3D; eth_individual_3D(1)];
+    eth_ys_3D = [eth_ys_3D; eth_individual_3D(2)];
+    eth_zs_3D = [eth_zs_3D; eth_individual_3D(3)];
+    u_Hs = cat(3, u_Hs, U_H);
+    u_Gs = cat(3, u_Gs, reshape(u_G,[3,config.N]));
+    U_ss = cat(3, U_ss, U_s);
+    u_cs = cat(3, u_cs, reshape(u_c,[3,config.N]));
+    U_Hds = cat(3, U_Hds, U_Hd);
+    us = cat(3, us, reshape(u,[3,config.N]));
+    vm_stresses_3D = [vm_stresses_3D, curr_vmSigma_3D];
+    tensors_stresses_3D = cat(3, tensors_stresses_3D, curr_SigmaTensor_3D);
+    elem_stresses_3D = cat(3,elem_stresses_3D, curr_elem_stress_3D);
+    pred_strains_3D = cat(3, pred_strains_3D, reshape(pred_strain_3D*u,[6,size(omesh.elements,1)]));
+    strains_3D = cat(3, strains_3D, curr_strain_3D);
+    scaled_deltas_3D = cat(3, scaled_deltas_3D, scaled_delta_3D);
+    pred_nodal_stresses_3D = reshape(pred_nodal_stresses_3D*u,[6,size(omesh.shape,1)]);
+    pred_stresses_3D = cat(3, pred_stresses_3D, pred_nodal_stresses_3D);
+    pred_element_stress_3D = reshape(pred_stresses_element_3D*u,[6,size(omesh.elements,1)]);
+    pred_elem_stresses_3D = cat(3, pred_elem_stresses_3D, pred_element_stress_3D);
+    [pred_vm_stress_3D,~] = VonMisesStressComp(pred_element_stress_3D, omesh.elements, size(omesh.shape,1));
+    pred_vmStresses_3D = [pred_vmStresses_3D, pred_vm_stress_3D];
+    
+    % Velocity calculations
+    u = u(:);
+    p_3D = p_3D + u*config.dt;
+    p_cbf = p_cbf + u_cbf*config.dt;
+    
+    for i = 1:config.N
+        nv(i,1) = norm(u(3*i-2:3*i,1));
+        nv_cbf(i,1) = norm(u_cbf(3*i-2:3*i,1));
+        if config.use_real_CBF
+            prop_nv_cbf(i,1) = norm(u_3D(3*i-2:3*i,1));
+        end
+    end
+    
+    vs_3D = [vs_3D u];
+    nvs_3D = [nvs_3D nv];
+    vs_cbf = [vs_cbf u_cbf];
+    nvs_cbf = [nvs_cbf nv_cbf];
+    
+    if config.use_real_CBF
+        prop_vs_cbf = [prop_vs_cbf u_3D];
+        prop_nvs_cbf = [prop_nvs_cbf prop_nv_cbf];
+    end
+    
+    % CBF error calculations
+    [g_Hcbf, g_Gcbf, eg_cbf, es_cbf, eth_cbf, eth_ind_cbf] = compute_errors3D(reshape(p_cbf,[3,config.N]),reshape(PT,[3,config.N]),config.sd, config.thd);
+    gammas_H_cbf = [gammas_H_cbf; g_Hcbf];
+    gammas_G_cbf = [gammas_G_cbf; g_Gcbf];
+    egs_cbf = [egs_cbf; eg_cbf];
+    ess_cbf = [ess_cbf; es_cbf];
+    eths_cbf = [eths_cbf; eth_cbf];
+    eth_xs_cbf = [eth_xs_cbf; eth_ind_cbf(1)];
+    eth_ys_cbf = [eth_ys_cbf; eth_ind_cbf(2)];
+    eth_zs_cbf = [eth_zs_cbf; eth_ind_cbf(3)];
+    
+    %% Video recording
+    if config.recordVideo
+        % Trajectory video
+        figure(trajectory_fig);
+        clf; hold on; box on;
+        view(3);
+        for i = 1:config.N
+            plot3(p0(3*i-2,1), p0(3*i-1,1), p0(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 15);
+            plot3(PT(3*i-2,1), PT(3*i-1,1), PT(3*i,1), 'o', 'color', color_robots(i), 'MarkerSize', 7, 'LineWidth', 1.5);
+            plot3(p_cbf(3*i-2,1), p_cbf(3*i-1,1), p_cbf(3*i,1), '.', 'color', color_robots(i), 'MarkerSize', 30);
+            plot3(p_3D(3*i-2,1), p_3D(3*i-1,1), p_3D(3*i,1), '*', 'color', color_robots(i), 'MarkerSize', 15);
+            plot3(ps_cbf(3*i-2,:), ps_cbf(3*i-1,:), ps_cbf(3*i,:), '-', 'color', color_robots(i), 'linewidth', 2);
+            plot3(ps_3D(3*i-2,:), ps_3D(3*i-1,:), ps_3D(3*i,:), '--', 'color', color_robots(i), 'linewidth', 2);
+        end
+        for i = 1:size(pairs,1)
+            plot3([p_cbf(3*pairs(i,1)-2), p_cbf(3*pairs(i,2)-2)], [p_cbf(3*pairs(i,1)-1), p_cbf(3*pairs(i,2)-1)], [p_cbf(3*pairs(i,1)), p_cbf(3*pairs(i,2))], '--', 'color', [0.5 0.8 0.5], 'linewidth', 1.5);
+        end
+        frame = getframe(gcf);
+        writeVideo(videoObj_traj, frame);
+        
+        % Von Mises video
+        figure(vonMises_fig);
+        clf;
+        subplot(1,2,1);
+        trisurf(omesh.elements, omesh.shape(:,1), omesh.shape(:,2), omesh.shape(:,3), vm_stress, 'EdgeColor', 'none');
+        colormap(customMap);
+        caxis([0 MaxStress]);
+        colorbar;
+        title("Von Mises CBF");
+        
+        subplot(1,2,2);
+        trisurf(omesh.elements, omesh.shape(:,1), omesh.shape(:,2), omesh.shape(:,3), curr_vmSigma_3D, 'EdgeColor', 'none');
+        colormap(customMap);
+        caxis([0 MaxStress]);
+        colorbar;
+        title("Von Mises 3D");
+        
+        frame = getframe(gcf);
+        writeVideo(videoObj_vonMises, frame);
+    end
+end
+
+%% Close video objects if recording
+if config.recordVideo
+    close(videoObj_traj);
+    close(videoObj_vonMises);
+    close(trajectory_fig);
+    close(vonMises_fig);
+end
+
+%% Package results
+results = struct();
+% Configuration
+results.config = config;
+results.agent_destinations = agent_destinations;
+results.control_gains = struct(...
+    'k_H', config.k_H, 'k_G', config.k_G, 'k_c', config.k_c, ...
+    'k_s', config.k_s, 'k_Hd', config.k_Hd, 'kCBF', config.kCBF, ...
+    'cbf_alpha', config.cbf_alpha);
+
+% Standard 3D Controller results
+results.ps_3D = ps_3D;
+results.gammas_H_3D = gammas_H_3D;
+results.gammas_G_3D = gammas_G_3D;
+results.egs_3D = egs_3D;
+results.ess_3D = ess_3D;
+results.eths_3D = eths_3D;
+results.eth_xs_3D = eth_xs_3D;
+results.eth_ys_3D = eth_ys_3D;
+results.eth_zs_3D = eth_zs_3D;
+results.vs_3D = vs_3D;
+results.nvs_3D = nvs_3D;
+
+% Control outputs
+results.u_Hs = u_Hs;
+results.u_Gs = u_Gs;
+results.U_ss = U_ss;
+results.u_cs = u_cs;
+results.U_Hds = U_Hds;
+results.u_cbfs = u_cbfs;
+results.us = us;
+
+% CBF results
+results.ps_cbf = ps_cbf;
+results.prop_nvs_cbf = prop_nvs_cbf;
+results.prop_vs_cbf = prop_vs_cbf;
+results.nvs_cbf = nvs_cbf;
+results.vs_cbf = vs_cbf;
+results.As = As;
+results.bs = bs;
+results.gammas_H_cbf = gammas_H_cbf;
+results.gammas_G_cbf = gammas_G_cbf;
+results.egs_cbf = egs_cbf;
+results.ess_cbf = ess_cbf;
+results.eths_cbf = eths_cbf;
+results.eth_xs_cbf = eth_xs_cbf;
+results.eth_ys_cbf = eth_ys_cbf;
+results.eth_zs_cbf = eth_zs_cbf;
+results.grads_hs = grads_hs;
+results.opt_hs = opt_hs;
+
+% Stress results
+results.vm_stresses_cbf = vm_stresses_cbf;
+results.tensor_stresses_cbf = tensor_stresses_cbf;
+results.pred_strains_cbf = pred_strains_cbf;
+results.strains_cbf = strains_cbf;
+results.elem_stresses_cbf = elem_stresses_cbf;
+results.pred_stresses_cbf = pred_stresses_cbf;
+results.pred_vmStresses_cbf = pred_vmStresses_cbf;
+results.scaled_deltas_cbf = scaled_deltas_cbf;
+results.pred_elem_stresses_cbf = pred_elem_stresses_cbf;
+
+results.vm_stresses_3D = vm_stresses_3D;
+results.tensors_stresses_3D = tensors_stresses_3D;
+results.scaled_deltas_3D = scaled_deltas_3D;
+results.pred_strains_3D = pred_strains_3D;
+results.elem_stresses_3D = elem_stresses_3D;
+results.pred_stresses_3D = pred_stresses_3D;
+results.pred_vmStresses_3D = pred_vmStresses_3D;
+results.pred_elem_stresses_3D = pred_elem_stresses_3D;
+
+% Additional simulation data
+results.PT = PT;
+results.pairs = pairs;
+results.omesh = omesh;
+end
+% ----------------------- END OF FUNCTION IMPLEMENTATION -----------------------

@@ -142,12 +142,13 @@ function [v, U_f, u_3D, U_H, u_G, U_s, u_c, U_Hd, u_cbf, agent_positions, agent_
     %%%%%%% NEW METHOD %%%%%%%
     % [stresses, strains, ~] = computeStressesByDeformationGradientv2(meshTetrahedrons, vert_origins, vert_positions, Ce);
     [stresses, ~, strains, ~,~] = ComputeStressByDisplacements(vert_origins - vert_positions,meshTetrahedrons, Ce, Le);
-
-
+    % [stresses, curr_SigmaTensor_R] = ComputeRotationalStresses(vert_origins,vert_positions,meshTetrahedrons,Le,Ce);
+    % stresses = squeeze(stresses);
     % ------- von Mises Stress -------
     % We compute the vertex/tetrahedron-wise's von Mises Stress
     [curr_vmSigma, ~, curr_SigmaTensor, ~] = VonMisesStressComp(stresses, meshTetrahedrons, N_verts);
-    
+    % curr_vmSigma(isnan(curr_vmSigma)) = 0;
+    % curr_SigmaTensor_R(isnan(curr_SigmaTensor_R)) = 0;
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -234,6 +235,7 @@ function [AgentsVels, A, b, grad_h, scaled_delta, pred_nodal_stresses, ...
     % -------------------------
     A = -grad_h;      % (N_verts×3N_agents)
     b =  alpha * h;   % (N_verts×1)
+
 
     % tStart = tic;
     % -------------------------

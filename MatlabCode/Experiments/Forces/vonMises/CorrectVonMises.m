@@ -153,7 +153,6 @@ for elem = 1:size(MeshTetrahedrons, 1)
     end
 end
 
-
 % Compute strains (6x1xN_tet)
 strains_disp = pagemtimes(Le, u_hat_e);
 
